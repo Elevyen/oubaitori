@@ -1,0 +1,220 @@
+/* ------------------------------
+   FONDOS SEGÚN LA HORA DEL DÍA
+--------------------------------*/
+
+/* Amanecer */
+body.amanecer {
+    background: linear-gradient(135deg, #ff9a9e, #fad0c4);
+}
+
+/* Mediodía */
+body.mediodia {
+    background: linear-gradient(135deg, #a1c4fd, #c2e9fb);
+}
+
+/* Atardecer */
+body.atardecer {
+    background: linear-gradient(135deg, #fbc2eb, #a18cd1);
+}
+
+/* Noche */
+body.noche {
+    background: linear-gradient(135deg, #0b1958, #8352cc);
+}
+
+/* ------------------------------
+   RESET Y ESTRUCTURA BASE (CORREGIDO PARA FOOTER)
+--------------------------------*/
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: 'Inter', sans-serif;
+}
+
+body {
+    background: linear-gradient(135deg, #a78bfa, #7dd3fc);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column; /* Cambiado para que el contenido y footer fluyan hacia abajo */
+    transition: background 1.5s ease-in-out;
+}
+
+/* Contenedor intermedio para centrar el Login/Registro sin romper el footer */
+.page-main-content {
+    flex: 1; /* Empuja al footer al fondo */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 100%;
+    padding: 40px 20px;
+}
+
+/* ------------------------------
+   CONTENEDOR DEL LOGIN / REGISTRO
+--------------------------------*/
+
+.login-container {
+    width: 380px;
+    background: #ffffff;
+    padding: 40px 30px;
+    border-radius: 16px;
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.15);
+    animation: fadeIn 0.6s ease;
+    text-align: center;
+}
+
+.login-container h1 {
+    font-size: 32px;
+    color: #4c1d95;
+    margin-bottom: 10px;
+}
+
+.login-container h2 {
+    font-size: 20px;
+    color: #6b7280;
+    margin-bottom: 25px;
+}
+
+/* ------------------------------
+   FORMULARIO E INPUTS
+--------------------------------*/
+
+.login-form {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.login-form input {
+    padding: 12px;
+    border-radius: 10px;
+    border: 1px solid #d1d5db;
+    font-size: 15px;
+    transition: 0.2s;
+}
+
+.login-form input:focus {
+    border-color: #7c3aed;
+    outline: none;
+    box-shadow: 0 0 5px rgba(124, 58, 237, 0.3);
+}
+
+/* ------------------------------
+   BOTONES Y LOGICA DE COLORES POR HORA
+--------------------------------*/
+
+button {
+    padding: 12px;
+    background: #7c3aed;
+    color: white;
+    border: none;
+    border-radius: 10px;
+    font-size: 16px;
+    cursor: pointer;
+    transition: background 1.5s ease-in-out, 
+                color 1.5s ease-in-out, 
+                box-shadow 0.3s ease, 
+                transform 0.3s ease;
+}
+
+button:hover {
+    background: #6d28d9;
+}
+
+/* Colores de botones por tema */
+body.amanecer button { background: linear-gradient(135deg, #ff9a9e, #fad0c4); color: #4a1d5e; }
+body.mediodia button { background: linear-gradient(135deg, #4facfe, #00f2fe); color: #0b1b3f; }
+body.atardecer button { background: linear-gradient(135deg, #fbc2eb, #a18cd1); color: #3a1a5f; }
+body.noche button { background: linear-gradient(135deg, #0b1958, #8352cc); color: #e5e5ff; }
+
+/* Hovers por tema */
+body.amanecer button:hover { box-shadow: 0 0 12px rgba(255, 154, 158, 0.6); transform: translateY(-2px); }
+body.mediodia button:hover { box-shadow: 0 0 12px rgba(79, 172, 254, 0.6); transform: translateY(-2px); }
+body.atardecer button:hover { box-shadow: 0 0 12px rgba(161, 140, 209, 0.6); transform: translateY(-2px); }
+body.noche button:hover { box-shadow: 0 0 12px rgba(131, 82, 204, 0.6); transform: translateY(-2px); }
+
+/* ------------------------------
+   ESTILOS DEL FOOTER (Sincronizados)
+--------------------------------*/
+
+.main-footer {
+    width: 100%;
+    padding: 30px 20px;
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(10px);
+    border-top: 1px solid rgba(255, 255, 255, 0.2);
+    text-align: center;
+    transition: all 1.5s ease-in-out;
+}
+
+/* Ajustes de texto del footer según el tema */
+body.amanecer .main-footer, body.mediodia .main-footer { color: #4c1d95; }
+body.atardecer .main-footer, body.noche .main-footer { color: #ffffff; }
+
+/* ------------------------------
+   ENLACES, ERRORES Y ANIMACIONES
+--------------------------------*/
+
+.registro-link {
+    margin-top: 20px;
+    font-size: 14px;
+}
+
+.registro-link a {
+    color: #7c3aed;
+    text-decoration: none;
+    font-weight: bold;
+}
+
+.error { color: #dc2626; font-size: 14px; }
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(15px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+/* --- ESTRUCTURA PARA STICKY FOOTER --- */
+.page-layout {
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh; /* Ocupa toda la pantalla */
+}
+
+.page-main-content {
+    flex: 1; /* Esto crece y empuja al footer al final */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 100%;
+}
+
+/* --- ESTILO DEL FOOTER (Lista Limpia) --- */
+.main-footer {
+    width: 100%;
+    padding: 20px 0;
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(10px);
+    border-top: 1px solid rgba(255, 255, 255, 0.2);
+    text-align: center;
+}
+
+.main-footer ul {
+    list-style: none; /* Quita los puntos de la lista */
+    padding: 0;
+    margin: 0;
+    display: flex;
+    justify-content: center;
+    gap: 20px; /* Espacio entre elementos */
+}
+
+.main-footer a {
+    text-decoration: none; /* Quita el subrayado */
+    color: inherit; /* Hereda el color del texto (morado o blanco según el tema) */
+    font-size: 14px;
+    transition: opacity 0.3s;
+}
+
+.main-footer a:hover {
+    opacity: 0.7;
+}

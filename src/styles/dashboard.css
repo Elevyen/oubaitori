@@ -1,0 +1,278 @@
+/* --- RESET Y ESTRUCTURA BASE --- */
+html,
+body {
+    margin: 0;
+    padding: 0;
+    min-height: 100vh;
+    background: radial-gradient(circle at top left, #4f46e5 0%, #0f172a 100%);
+    font-family: 'Segoe UI', Roboto, sans-serif;
+    overflow-x: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+.page-layout {
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+}
+
+.page-main-content {
+    flex: 1; /* Empuja el footer al final */
+}
+
+.dashboard-container {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 20px;
+    display: flex;
+    gap: 20px;
+}
+
+/* MARGENES DE SECCIÓN */
+.section-margin {
+    margin-bottom: 25px;
+}
+
+/* MAIN LAYOUT */
+.main-layout-wrapper {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.main-layout {
+    display: flex;
+    gap: 20px;
+}
+
+/* SIDEBAR */
+.sidebar {
+    width: 200px;
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(12px);
+    border-radius: 20px;
+    padding: 20px;
+    height: fit-content;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.sidebar nav a {
+    display: block;
+    color: white;
+    text-decoration: none;
+    padding: 10px;
+    border-radius: 8px;
+    margin-bottom: 4px;
+    font-size: 0.9rem;
+    opacity: 0.8;
+}
+
+.sidebar nav a:hover {
+    background: rgba(255, 255, 255, 0.1);
+    opacity: 1;
+}
+
+/* Enlace especial de cerrar sesión */
+.logout-link {
+    color: #ffbaba !important;
+    font-weight: bold;
+    margin-top: 10px;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    padding-top: 15px !important;
+}
+
+/* CONTENIDO PRINCIPAL */
+.main-content {
+    flex: 3;
+    display: flex;
+    flex-direction: column;
+}
+
+.right-panel {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+/* --- TARJETAS GENERALES (CORREGIDO PARA FONDO BLANCO) --- */
+.card,
+.greeting-card,
+.calendar-card,
+.status-card-compact,
+.profile-mini-card {
+    background: white !important; /* Forzamos el blanco para que no sea transparente */
+    border-radius: 16px;
+    padding: 20px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+    color: #1f2937 !important; /* Texto oscuro para visibilidad sobre blanco */
+}
+
+/* FILA DE ESTADO COMPACTA (UNA SOLA FILA) */
+.status-row-compact {
+    display: flex;
+    gap: 20px;
+    width: 100%;
+}
+
+.status-card-compact {
+    flex: 1;
+    padding: 15px 20px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
+.status-card-compact h3 {
+    margin: 0 0 8px 0;
+    font-size: 0.95rem;
+    color: #4f46e5;
+}
+
+.status-emotion {
+    font-size: 1.1rem;
+    font-weight: bold;
+    margin: 0;
+}
+
+.status-detail {
+    font-size: 0.85rem;
+    color: #6b7280;
+    margin: 4px 0 0 0;
+}
+
+/* CALENDARIO */
+.calendar-placeholder {
+    width: 100%;
+    height: 350px;
+    background: #f9fafb;
+    border: 2px dashed #e5e7eb;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #9ca3af;
+    margin-top: 15px;
+}
+
+/* CAJITA DE PERFIL (DERECHA) */
+.profile-mini-card {
+    border-left: 4px solid #4f46e5;
+}
+
+.profile-mini-card h4 {
+    margin: 0;
+    color: #4f46e5;
+    font-size: 0.9rem;
+}
+
+.profile-name {
+    font-weight: bold;
+    font-size: 1.1rem;
+    margin: 8px 0;
+}
+
+.edit-link {
+    font-size: 0.8rem;
+    color: #4f46e5;
+    text-decoration: none;
+    font-weight: 600;
+}
+
+/* --- UI RPG --- */
+.rpg-ui-layer {
+    position: relative;
+    width: 100%;
+    max-width: 1000px;
+    margin: 10px auto 25px auto;
+    z-index: 10;
+}
+
+.rpg-character-container {
+    position: absolute;
+    right: 20px;
+    bottom: 80px;
+    width: 200px;
+    z-index: 1;
+}
+
+.rpg-character-img {
+    width: 100%;
+    height: auto;
+    filter: drop-shadow(0 10px 20px rgba(0, 0, 0, 0.2));
+}
+
+.dialogue-box {
+    position: relative;
+    z-index: 2;
+    background: white;
+    border-radius: 24px;
+    padding: 30px 40px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
+}
+
+.dialogue-name-tag {
+    position: absolute;
+    top: -15px;
+    left: 40px;
+    background: white;
+    padding: 5px 25px;
+    border-radius: 10px;
+    border: 2px solid #4f46e5;
+    z-index: 3;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+}
+
+.dialogue-name-tag span {
+    font-weight: bold;
+    color: #4f46e5;
+}
+
+.rpg-button {
+    background: linear-gradient(90deg, #f472b6, #a78bfa);
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 12px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: transform 0.2s;
+}
+
+.rpg-button:hover {
+    transform: scale(1.05);
+}
+
+/* --- FOOTER --- */
+.main-footer {
+    width: 100%;
+    padding: 20px 0;
+    background: rgba(0, 0, 0, 0.3);
+    backdrop-filter: blur(10px);
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    color: white;
+    text-align: center;
+}
+
+.main-footer ul {
+    list-style: none;
+    padding: 0;
+    display: flex;
+    justify-content: center;
+    gap: 30px;
+}
+
+.main-footer a {
+    color: white;
+    text-decoration: none;
+    font-size: 14px;
+    opacity: 0.8;
+}
+
+.main-footer a:hover {
+    opacity: 1;
+}
