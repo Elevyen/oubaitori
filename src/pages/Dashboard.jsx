@@ -2,7 +2,7 @@ import { useContext } from "react"
 import personaje from "../assets/personaje.png"
 import Card from "../components/ui/Card"
 import { AuthContext } from "../context/AuthContext"
-import "../styles/Dashboard.css"
+import "../styles/dashboard.css"
 
 export default function Dashboard() {
     const { user, setUser } = useContext(AuthContext) || {}
