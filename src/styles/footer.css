@@ -1,6 +1,3 @@
-/* -----------------------------------------------------------
-   ESTILOS BASE DEL FOOTER (Sincronizados con App.jsx)
------------------------------------------------------------*/
 .main-footer {
     width: 100%;
     padding: 40px 20px 20px 20px;
@@ -52,41 +49,31 @@
     opacity: 0.5;
 }
 
-/* -----------------------------------------------------------
-   VARIACIONES DINÁMICAS (Lógica de App.jsx theme)
------------------------------------------------------------*/
-
-/* Amanecer y Mediodía: Fondos Claros -> Texto Oscuro */
 body.amanecer .main-footer, 
 body.mediodia .main-footer {
     background: rgba(255, 255, 255, 0.3);
-    color: #312e81; /* Indigo oscuro para legibilidad */
+    color: #312e81;
     border-top-color: rgba(0, 0, 0, 0.05);
 }
 
 body.amanecer .footer-section h4, 
 body.mediodia .footer-section h4 {
-    color: #7c3aed; /* El morado de tus botones */
+    color: #7c3aed;
 }
 
-/* Atardecer y Noche: Fondos Oscuros -> Texto Claro */
 body.atardecer .main-footer, 
 body.noche .main-footer {
-    background: rgba(15, 23, 42, 0.4); /* Slate oscuro */
+    background: rgba(15, 23, 42, 0.4);
     color: #f8fafc;
     border-top-color: rgba(255, 255, 255, 0.1);
 }
 
 body.atardecer .footer-section h4, 
 body.noche .footer-section h4 {
-    color: #a78bfa; /* Lila claro */
+    color: #a78bfa;
 }
 
-/* -----------------------------------------------------------
-   BOTÓN DE INCIDENCIAS (Hereda estilos de global.css)
------------------------------------------------------------*/
 .incident-button {
-    /* Mantenemos padding y forma, el color viene de 'body.clase button' en global.css */
     padding: 10px 22px;
     border-radius: 12px;
     font-weight: 600;

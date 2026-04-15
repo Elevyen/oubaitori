@@ -31,8 +31,8 @@ export default function RegistroUsuario() {
     }
 
     return (
-        <div className="page-layout"> {/* Mantiene la estructura base del layout */}
-            <main className="page-main-content"> {/* Empuja el footer hacia abajo */}
+        <div className="page-layout">
+            <main className="page-main-content">
                 <div className="login-container">
                     <h1>Oubaitori</h1>
                     <h2>Crear cuenta</h2>

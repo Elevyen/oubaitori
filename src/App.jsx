@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import Footer from "./components/ui/Footer"; // <-- importa tu Footer tal cual
+import Footer from "./components/ui/Footer";
 import AppRouter from "./router/AppRouter";
 
 function App() {
