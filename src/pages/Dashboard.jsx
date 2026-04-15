@@ -1,9 +1,9 @@
 import { useContext, useEffect, useState } from "react"
-import Card from "src/components/ui/Card.jsx"
 import { createEntry, fetchEntriesByMonth } from "../api/entries"
 import personaje from "../assets/personaje.png"
 import CalendarView from "../components/CalendarView"
 import RegistroEmocional from "../components/RegistroEmocional"
+import Card from "../components/ui/Card.jsx"
 import { AuthContext } from "../context/AuthContext"
 import "../styles/dashboard.css"
 
