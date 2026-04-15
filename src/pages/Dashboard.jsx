@@ -5,7 +5,7 @@ import personaje from "../assets/personaje.png"
 import CalendarView from "../components/CalendarView"
 import RegistroEmocional from "../components/RegistroEmocional"
 import { AuthContext } from "../context/AuthContext"
-import "../styles/Dashboard.css"
+import "../styles/dashboard.css"
 
 export default function Dashboard() {
     const { user, setUser } = useContext(AuthContext) || {}
