@@ -86,26 +86,33 @@ export default function RegistroEmocional({ open, onClose, date, onSave, initial
 
     const prevOpenRef = useRef(false);
 
-    useEffect(() => {
-        if (open && !prevOpenRef.current) {
-            setEmoji(initial.emoji || '');
-            setIntensity(initial.intensity ?? 5);
-            setTagsText((initial.tags || []).join(', '));
-            setNote(initial.note || '');
-            setFilter('');
-            setSelectedEmotions(initial.selectedEmotions || []);
-        }
-        prevOpenRef.current = open;
-    }, [open]);
 
-    const parseTags = (text) =>text .split(',').map(t => t.trim()).filter(Boolean);
+    useEffect(() => {
+        // Convertimos el texto de tags en un array normalizado
+        const tags = parseTags(tagsText).map(t => t.toLowerCase());
+
+        setSelectedEmotions(prev => {
+            // Filtramos solo las emociones cuyo id siga presente en los tags
+            const filtered = prev.filter(e => tags.includes(e.id.toLowerCase()));
+
+            // Si la emoción eliminada era la que aportaba el emoji principal, lo limpiamos
+            if (!filtered.find(e => e.emoji === emoji)) {
+                setEmoji('');
+            }
+
+            return filtered;
+        });
+    }, [tagsText]);
+
+
+    const parseTags = (text) => text.split(',').map(t => t.trim().toLowerCase()).filter(Boolean);
 
     const joinTags = (arr) => Array.from(new Set(arr)).join(', ');
 
     const addTagIdToText = (id) => {
         const parts = parseTags(tagsText);
-        if (!parts.includes(id)) {
-            parts.push(id);
+        if (!parts.includes(id.toLowerCase())) {
+            parts.push(id.toLowerCase());
             setTagsText(joinTags(parts));
         }
     };
@@ -256,11 +263,11 @@ export default function RegistroEmocional({ open, onClose, date, onSave, initial
                                             '--preset-bg': e.color,
                                             '--preset-fg': e.textColor
                                         }}
-                                        >
+                                    >
                                         <span role="img" aria-label={e.label} className="preset-emoji">
                                             {e.emoji}
                                         </span>
-                                        </button>
+                                    </button>
                                 );
                             })}
                         </div>
