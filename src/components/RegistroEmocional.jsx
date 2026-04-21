@@ -187,7 +187,6 @@ export default function RegistroEmocional({ open, onClose, date, onSave, initial
             await onSave(payload);
             onClose();
         } catch (err) {
-            console.error(err);
             alert('Error al guardar. Intenta de nuevo.');
         } finally {
             setSaving(false);

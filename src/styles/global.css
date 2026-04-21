@@ -1,29 +1,43 @@
 /* FONDOS SEGÚN LA HORA DEL DÍA */
-body.amanecer { --page-gradient: linear-gradient(135deg, #ff9a9e, #fad0c4); --page-foreground: #4a1d5e; }
-body.mediodia  { --page-gradient: linear-gradient(135deg, #a1c4fd, #c2e9fb); --page-foreground: #0b1b3f; }
-body.atardecer { --page-gradient: linear-gradient(135deg, #fbc2eb, #a18cd1); --page-foreground: #3a1a5f; }
-body.noche     { --page-gradient: linear-gradient(135deg, #0b1958, #8352cc); --page-foreground: #e5e5ff; }
-
-body { --page-gradient: linear-gradient(135deg, #a78bfa, #7dd3fc); --page-foreground: #ffffff; }
-
-/* Amanecer */
 body.amanecer {
-    background: linear-gradient(135deg, #ff9a9e, #fad0c4);
+    --page-gradient: linear-gradient(135deg, #ff9a9e, #fad0c4);
+    --page-foreground: #4a1d5e;
 }
 
-/* Mediodía */
 body.mediodia {
-    background: linear-gradient(135deg, #a1c4fd, #c2e9fb);
+    --page-gradient: linear-gradient(135deg, #a1c4fd, #c2e9fb);
+    --page-foreground: #0b1b3f;
 }
 
-/* Atardecer */
 body.atardecer {
-    background: linear-gradient(135deg, #fbc2eb, #a18cd1);
+    --page-gradient: linear-gradient(135deg, #fbc2eb, #a18cd1);
+    --page-foreground: #3a1a5f;
 }
 
-/* Noche */
 body.noche {
-    background: linear-gradient(135deg, #0b1958, #8352cc);
+    --page-gradient: linear-gradient(135deg, #0b1958, #8352cc);
+    --page-foreground: #e5e5ff;
+}
+
+body {
+    --page-gradient: linear-gradient(135deg, #a78bfa, #7dd3fc);
+    --page-foreground: #ffffff;
+}
+
+body.amanecer {
+    background: var(--page-gradient);
+}
+
+body.mediodia {
+    background: var(--page-gradient);
+}
+
+body.atardecer {
+    background: var(--page-gradient);
+}
+
+body.noche {
+    background: var(--page-gradient);
 }
 
 * {
@@ -34,11 +48,18 @@ body.noche {
 }
 
 body {
-    background: linear-gradient(135deg, #a78bfa, #7dd3fc);
-    min-height: 100vh;
+    background: var(--page-gradient);
+    min-height: 94vh;
     display: flex;
     flex-direction: column;
     transition: background 1.5s ease-in-out;
+    overflow-x: hidden;
+}
+
+.page-layout {
+    display: flex;
+    flex-direction: column;
+    min-height: 94vh;
 }
 
 .page-main-content {
@@ -47,9 +68,8 @@ body {
     justify-content: center;
     align-items: center;
     width: 100%;
-    padding: 40px 20px;
+    padding: 2px 20px;
 }
-
 
 .login-container {
     width: 380px;
@@ -73,7 +93,6 @@ body {
     margin-bottom: 25px;
 }
 
-
 .login-form {
     display: flex;
     flex-direction: column;
@@ -93,7 +112,6 @@ body {
     outline: none;
     box-shadow: 0 0 5px rgba(124, 58, 237, 0.3);
 }
-
 
 button {
     padding: 12px;
@@ -153,28 +171,6 @@ body.noche button:hover {
     transform: translateY(-2px);
 }
 
-
-.main-footer {
-    width: 100%;
-    padding: 30px 20px;
-    background: rgba(255, 255, 255, 0.1);
-    backdrop-filter: blur(10px);
-    border-top: 1px solid rgba(255, 255, 255, 0.2);
-    text-align: center;
-    transition: all 1.5s ease-in-out;
-}
-
-body.amanecer .main-footer,
-body.mediodia .main-footer {
-    color: #4c1d95;
-}
-
-body.atardecer .main-footer,
-body.noche .main-footer {
-    color: #ffffff;
-}
-
-
 .registro-link {
     margin-top: 20px;
     font-size: 14px;
@@ -201,47 +197,4 @@ body.noche .main-footer {
         opacity: 1;
         transform: translateY(0);
     }
-}
-
-.page-layout {
-    display: flex;
-    flex-direction: column;
-    min-height: 100vh;
-}
-
-.page-main-content {
-    flex: 1;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    width: 100%;
-}
-
-.main-footer {
-    width: 100%;
-    padding: 20px 0;
-    background: rgba(255, 255, 255, 0.1);
-    backdrop-filter: blur(10px);
-    border-top: 1px solid rgba(255, 255, 255, 0.2);
-    text-align: center;
-}
-
-.main-footer ul {
-    list-style: none;
-    padding: 0;
-    margin: 0;
-    display: flex;
-    justify-content: center;
-    gap: 20px;
-}
-
-.main-footer a {
-    text-decoration: none;
-    color: inherit;
-    font-size: 14px;
-    transition: opacity 0.3s;
-}
-
-.main-footer a:hover {
-    opacity: 0.7;
 }

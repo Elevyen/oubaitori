@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import Footer from "./components/ui/Footer";
+import { AuthProvider } from "./context/AuthContext";
 import AppRouter from "./router/AppRouter";
 
 function App() {
@@ -23,10 +24,10 @@ function App() {
   }, [])
 
   return (
-    <>
+    <AuthProvider>
       <AppRouter />
       <Footer />
-    </>
+    </AuthProvider>
   )
 }
 
