@@ -1,0 +1,352 @@
+/* src/styles/contacto.css
+   Centrado de la Card y disposición interna respetando el orden del DOM.
+   No se definen colores fijos; se usan variables y estilos neutrales para integrarse con global.css.
+*/
+
+/* Ajuste del título y descripción fuera de la Card (mantener jerarquía visual) */
+#contacto-title {
+    width: 100%;
+    max-width: 920px;
+    margin: 35px auto;
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--page-foreground, #111);
+}
+
+#contacto-desc {
+    width: 100%;
+    max-width: 920px;
+    margin: 0 auto 18px;
+    font-size: 14px;
+    color: rgba(0, 0, 0, 0.6);
+    line-height: 1.45;
+}
+
+/* Card centrada y con ancho contenido (no ocupa todo el ancho) */
+.card.contacto-card {
+    width: 100%;
+    max-width: 820px;
+    /* card no ocupa todo el ancho */
+    background: rgba(255, 255, 255, 0.96);
+    border-radius: 14px;
+    padding: 18px;
+    box-shadow: 0 12px 36px rgba(0, 0, 0, 0.10);
+    box-sizing: border-box;
+    transition: transform 0.18s ease, box-shadow 0.18s ease;
+    margin: 0 auto;
+}
+
+/* Form layout inside the Card: keep DOM order (radio, email, title, message, buttons) */
+/* Default: single column flow that follows the JSX order */
+.card.contacto-card form,
+.card.contacto-card[role="form"] {
+    display: block;
+}
+
+/* Radio group styling (first element) */
+.card.contacto-card [role="radiogroup"] {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    flex-wrap: wrap;
+    margin-bottom: 12px;
+}
+
+.card.contacto-card [role="radiogroup"] label {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 10px;
+    border-radius: 10px;
+    cursor: pointer;
+    font-size: 14px;
+    color: rgba(0, 0, 0, 0.78);
+    transition: background 0.12s ease, transform 0.12s ease;
+}
+
+.card.contacto-card [role="radiogroup"] input[type="radio"] {
+    width: 16px;
+    height: 16px;
+    accent-color: var(--page-foreground, #7c3aed);
+}
+
+.card.contacto-card [role="radiogroup"] label:hover {
+    background: rgba(124, 58, 237, 0.06);
+    transform: translateY(-1px);
+}
+
+/* Shared input styles (applied via classes used in JSX) */
+.contacto-input,
+.contacto-textarea,
+.card.contacto-card input[type="email"],
+.card.contacto-card input[type="text"],
+.card.contacto-card textarea {
+    width: 100%;
+    padding: 12px 14px;
+    border-radius: 10px;
+    border: 1px solid rgba(17, 24, 39, 0.08);
+    background: rgba(255, 255, 255, 0.98);
+    font-size: 14px;
+    color: var(--page-foreground, #111);
+    transition: box-shadow 0.18s ease, border-color 0.18s ease, transform 0.12s ease;
+    box-sizing: border-box;
+    margin-top: 6px;
+}
+
+/* Textarea specifics */
+.contacto-textarea,
+.card.contacto-card textarea {
+    min-height: 120px;
+    resize: vertical;
+    line-height: 1.45;
+}
+
+/* Focus states (coherente con global.css) */
+.contacto-input:focus,
+.contacto-textarea:focus,
+.card.contacto-card input:focus,
+.card.contacto-card textarea:focus {
+    outline: none;
+    border-color: rgba(124, 58, 237, 0.9);
+    box-shadow: 0 8px 24px rgba(124, 58, 237, 0.08);
+    transform: translateY(-1px);
+}
+
+/* Buttons container (last element) - keep order: Enviar, Volver, Limpiar */
+.card.contacto-card>div.actions,
+.card.contacto-card>div[style*="display: flex"] {
+    margin-top: 12px;
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    align-items: center;
+}
+
+/* Primary and secondary button classes (JSX uses btn-primary / btn-secondary) */
+.btn-primary {
+    padding: 10px 16px;
+    border-radius: 10px;
+    font-weight: 700;
+    cursor: pointer;
+    border: none;
+    transition: box-shadow 0.18s ease, transform 0.12s ease, opacity 0.12s ease;
+    background: var(--page-foreground, #7c3aed);
+    color: #fff;
+}
+
+.btn-secondary {
+    padding: 10px 16px;
+    border-radius: 10px;
+    font-weight: 600;
+    cursor: pointer;
+    border: none;
+    background: rgba(0, 0, 0, 0.06);
+    color: var(--page-foreground, #111);
+}
+
+/* Hover and disabled states */
+.card.contacto-card button:not([disabled]):hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.10);
+}
+
+button[disabled],
+button[aria-disabled="true"] {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+}
+
+/* Status messages inside the Card */
+.card.contacto-card [role="status"] {
+    margin-top: 12px;
+    font-size: 14px;
+}
+
+.status-success {
+    color: #166534;
+    font-weight: 600;
+}
+
+.status-error {
+    color: #b91c1c;
+    font-weight: 600;
+}
+
+/* Accessibility helper (sr-only) */
+.sr-only {
+    position: absolute !important;
+    height: 1px;
+    width: 1px;
+    overflow: hidden;
+    clip: rect(1px, 1px, 1px, 1px);
+    white-space: nowrap;
+}
+
+/* Responsive: on wide screens, arrange inputs in two-column grid but preserve DOM order */
+/* Layout mapping:
+   Row 1: radio group spans both columns
+   Row 2: email (col1), titulo (col2)
+   Row 3: mensaje spans both columns
+   Row 4: buttons span both columns
+*/
+@media (min-width: 880px) {
+
+    .card.contacto-card [role="radiogroup"] {
+        grid-column: 1 / -1;
+    }
+
+    #contacto-email {
+        grid-column: 1 / 2;
+    }
+
+    #contacto-titulo {
+        grid-column: 2 / 3;
+    }
+
+    #contacto-mensaje {
+        grid-column: 1 / -1;
+    }
+
+    .card.contacto-card>div.actions,
+    .card.contacto-card>div[style*="display: flex"] {
+        grid-column: 1 / -1;
+        justify-self: end;
+    }
+}
+
+/* Small screens adjustments */
+@media (max-width: 520px) {
+    .card.contacto-card {
+        padding: 14px;
+        border-radius: 12px;
+    }
+
+    #contacto-title {
+        font-size: 20px;
+    }
+
+    #contacto-desc {
+        font-size: 13px;
+    }
+
+    .card.contacto-card>div.actions,
+    .card.contacto-card>div[style*="display: flex"] {
+        flex-direction: column;
+        gap: 10px;
+    }
+
+    .card.contacto-card>div.actions button,
+    .card.contacto-card>div[style*="display: flex"] button {
+        width: 100%;
+    }
+}
+
+/* Subtle entrance animation */
+@keyframes contactoFadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(8px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.card.contacto-card {
+    animation: contactoFadeIn 0.36s ease;
+}
+/* ===== Ajustes para que footer quede abajo y Card se adapte al viewport ===== */
+
+/* 1) Asegurar que html/body y #root ocupen toda la altura */
+html, body, #root {
+  height: 100%;
+  min-height: 100%;
+  box-sizing: border-box;
+}
+
+/* 2) Hacer que #root sea un contenedor flex-column para que footer pueda "empujarse" abajo */
+#root {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+/* 3) El main dentro de #root debe crecer para empujar el footer abajo.
+   Centrar la Card dentro del main (vertical y horizontalmente). */
+#root > main.contacto-page,
+main.contacto-page {
+  flex: 1 1 auto;
+  align-items: center;       /* centra verticalmente */
+  justify-content: center;   /* centra horizontalmente */
+  padding: 28px 20px;
+  box-sizing: border-box;
+  min-height: 0;             /* importante para que el flex child no desborde */
+}
+
+/* 4) Forzar que el footer dentro de #root quede al final */
+/*#root > footer,
+#root > .main-footer,
+footer.main-footer,
+footer.site-footer {
+  margin-top: auto;
+  width: 100%;
+  box-sizing: border-box;
+}*/
+
+/* 5) Card adaptable: limitar altura y permitir scroll interno en el cuerpo del formulario */
+.card.contacto-card {
+  width: 100%;
+  max-width: 820px;
+  max-height: calc(100vh - 160px); /* deja espacio para título + footer + paddings */
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  margin: 0 auto;
+}
+
+/* 6) Hacer que el formulario use el espacio disponible y que el cuerpo haga scroll si hace falta.
+   Añade en el JSX un wrapper .form-body alrededor de los campos (opcional pero recomendado). */
+.card.contacto-card form,
+.card.contacto-card > form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  flex: 1 1 auto;
+  min-height: 0; /* clave para que el overflow funcione en flex children */
+  overflow: hidden;
+}
+
+/* Si envuelves los campos en .form-body, aplica overflow ahí */
+.card.contacto-card .form-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  padding-right: 6px; /* espacio para scrollbar */
+}
+
+/* Mantener las acciones (botones) fuera del área scrollable */
+.card.contacto-card .form-actions {
+  flex: 0 0 auto;
+  margin-top: 12px;
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+/* 7) Ajustes responsive (pequeñas mejoras) */
+@media (max-width: 520px) {
+  .card.contacto-card {
+    max-height: calc(100vh - 120px);
+    padding: 14px;
+  }
+  .card.contacto-card .form-actions { flex-direction: column; }
+  .card.contacto-card .form-actions button { width: 100%; }
+}
+
+/* 8) Fallbacks: si tu app ya aplica display:flex en body/.page-layout, estas reglas no rompen nada.
+   Si por el contrario tienes reglas conflictivas, elimina duplicados que fuerzan body display. */

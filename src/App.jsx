@@ -1,34 +1,39 @@
 import { useEffect } from "react";
 import Footer from "./components/ui/Footer";
-import { AuthProvider } from "./context/AuthContext";
 import AppRouter from "./router/AppRouter";
 
 function App() {
-
   useEffect(() => {
-    const hour = new Date().getHours()
+    const hour = new Date().getHours();
+    let theme = "";
+    if (hour >= 6 && hour < 12) theme = "amanecer";
+    else if (hour >= 12 && hour < 18) theme = "mediodia";
+    else if (hour >= 18 && hour < 21) theme = "atardecer";
+    else theme = "noche";
+    document.body.className = theme;
+  }, []);
 
-    let theme = ""
+  const apiBase =
+    import.meta?.env?.VITE_LOCAL_BACKEND ||
+    window?.API_BASE ||
+    import.meta?.env?.VITE_RENDER_BACKEND ||
+    "";
 
-    if (hour >= 6 && hour < 12) {
-      theme = "amanecer"
-    } else if (hour >= 12 && hour < 18) {
-      theme = "mediodia"
-    } else if (hour >= 18 && hour < 21) {
-      theme = "atardecer"
-    } else {
-      theme = "noche"
+  const token = localStorage.getItem("token") || null;
+  const user = (() => {
+    try {
+      return JSON.parse(localStorage.getItem("user") || "null");
+    } catch (e) {
+      return null;
     }
-
-    document.body.className = theme
-  }, [])
+  })();
 
   return (
-    <AuthProvider>
-      <AppRouter />
+    <div className="page-layout">
+      <AppRouter apiBase={apiBase} token={token} user={user} />
       <Footer />
-    </AuthProvider>
-  )
+    </div>
+  );
 }
 
-export default App
+export default App;

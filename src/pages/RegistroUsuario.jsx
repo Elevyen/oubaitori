@@ -3,6 +3,14 @@ import { useNavigate } from "react-router-dom";
 import { AuthContext } from "../context/AuthContext";
 import "../styles/registro-usuario.css";
 
+const API_BASE =
+    (typeof import.meta !== "undefined" &&
+        import.meta.env &&
+        (import.meta.env.VITE_LOCAL_BACKEND ||
+            import.meta.env.VITE_RENDER_BACKEND ||
+            import.meta.env.VITE_API_BASE)) ||
+    "";
+
 export default function RegistroUsuario() {
     const navigate = useNavigate();
     const { setUser } = useContext(AuthContext);
@@ -10,46 +18,96 @@ export default function RegistroUsuario() {
     const [nombre, setNombre] = useState("");
     const [email, setEmail] = useState("");
     const passwordRef = useRef(null);
-
-    const [gender, setGender] = useState("");
-    const [pronouns, setPronouns] = useState("");
+    const [genero, setGenero] = useState("");
+    const [pronombres, setPronombres] = useState("");
     const [error, setError] = useState("");
+    const [loading, setLoading] = useState(false);
 
-    const handleSubmit = (e) => {
+    async function checkEmailExists(emailToCheck) {
+        try {
+            const res = await fetch(`${API_BASE}/api/usuarios/check-email`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ email: emailToCheck })
+            });
+            if (!res.ok) return { ok: false, exists: false };
+            const data = await res.json().catch(() => ({}));
+            return { ok: true, exists: !!data.exists };
+        } catch (err) {
+            console.error("Error comprobando email:", err);
+            return { ok: false, exists: false };
+        }
+    }
+
+    const handleSubmit = async (e) => {
         e.preventDefault();
         setError("");
-
         const password = passwordRef.current?.value ?? "";
+        const emailNorm = (email || "").toLowerCase().trim();
 
-        if (!nombre || !email || !password) {
+        if (!nombre || !emailNorm || !password) {
             setError("Por favor, completa todos los campos.");
             if (passwordRef.current) passwordRef.current.value = "";
             return;
         }
 
-        const safePending = {
-            nombre,
-            email,
-            gender: gender || null,
-            pronouns: pronouns || null
-        };
-
+        setLoading(true);
         try {
-            sessionStorage.setItem("pendingUser", JSON.stringify(safePending));
+            // Comprueba si el email ya está registrado
+            const check = await checkEmailExists(emailNorm);
+            if (!check.ok) {
+                setError("No se pudo comprobar el correo. Intenta de nuevo.");
+                return;
+            }
+            if (check.exists) {
+                setError("Ya existe un usuario con ese correo.");
+                return;
+            }
+
+            // Si no existe, crea el pendingUser en el backend
+            const res = await fetch(`${API_BASE}/api/usuarios/create-pending`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    nombre,
+                    email: emailNorm,
+                    password,
+                    genero: genero || null,
+                    pronombres: pronombres || null
+                })
+            });
+
+            const data = await res.json().catch(() => ({}));
+
+            if (!res.ok) {
+                if (res.status === 409) {
+                    setError("Ya existe un usuario con ese correo.");
+                } else {
+                    setError(data.error || "Error comprobando el correo. Intenta de nuevo.");
+                }
+                return;
+            }
+
+            const { pendingToken, pendingUser } = data;
+            if (!pendingToken) {
+                setError("No se pudo iniciar el registro. Intenta de nuevo.");
+                return;
+            }
+
+            // No guardamos la contraseña en el cliente
+            if (passwordRef.current) passwordRef.current.value = "";
+
+            navigate("/selectPartner", { state: { pendingUser, pendingToken } });
         } catch (err) {
+            console.error("Error en comprobación frontend:", err);
+            setError("Error de red. Intenta de nuevo.");
+        } finally {
+            setLoading(false);
+            if (passwordRef.current) passwordRef.current.value = "";
         }
-
-        try {
-            setUser && setUser({ nombre: safePending.nombre, email: safePending.email });
-        } catch (err) {
-        }
-
-        if (passwordRef.current) passwordRef.current.value = "";
-
-        navigate("/selectPartner", { state: { pendingUser: safePending } });
     };
 
-    const displayPronouns = () => pronouns || "—";
+    const displayPronouns = () => pronombres || "—";
 
     return (
         <div className="page-layout">
@@ -57,7 +115,6 @@ export default function RegistroUsuario() {
                 <div className="login-container">
                     <h1>Oubaitori</h1>
                     <h2>Crear cuenta</h2>
-
                     <form onSubmit={handleSubmit} className="login-form" autoComplete="off">
                         <input
                             type="text"
@@ -66,7 +123,6 @@ export default function RegistroUsuario() {
                             onChange={(e) => setNombre(e.target.value)}
                             autoComplete="name"
                         />
-
                         <input
                             type="email"
                             placeholder="Correo electrónico"
@@ -74,17 +130,15 @@ export default function RegistroUsuario() {
                             onChange={(e) => setEmail(e.target.value)}
                             autoComplete="email"
                         />
-
                         <input
                             ref={passwordRef}
                             type="password"
                             placeholder="Contraseña"
                             autoComplete="new-password"
                         />
-
                         <label className="field">
                             <div className="field-label">Género (opcional)</div>
-                            <select value={gender} onChange={(e) => setGender(e.target.value)} aria-label="Género">
+                            <select value={genero} onChange={(e) => setGenero(e.target.value)} aria-label="Género">
                                 <option value="mujer">Mujer</option>
                                 <option value="hombre">Hombre</option>
                                 <option value="nobinario">No binario</option>
@@ -92,20 +146,19 @@ export default function RegistroUsuario() {
                                 <option value="">Prefiero no decirlo</option>
                             </select>
                         </label>
-
                         <label className="field">
                             <div className="field-label">Pronombres (opcional)</div>
-                            <select value={pronouns} onChange={(e) => setPronouns(e.target.value)} aria-label="Pronombres">
+                            <select value={pronombres} onChange={(e) => setPronombres(e.target.value)} aria-label="Pronombres">
                                 <option value="ella">Ella</option>
                                 <option value="él">Él</option>
                                 <option value="elle">Elle</option>
                                 <option value="">Prefiero no decirlo</option>
                             </select>
                         </label>
-
                         {error && <p className="error">{error}</p>}
-
-                        <button type="submit" className="rpg-button">Registrarme</button>
+                        <button type="submit" className="rpg-button" disabled={loading}>
+                            {loading ? "Comprobando..." : "Continuar"}
+                        </button>
                     </form>
 
                     <p className="registro-link">

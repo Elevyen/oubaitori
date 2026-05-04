@@ -27,7 +27,6 @@ export default function CalendarView({ month, onDayClick, entries = [] }) {
         }
     };
 
-    // Contenido de cada celda (Emoji e Intensidad)
     function tileContent({ date, view }) {
         if (view !== 'month') return null;
 

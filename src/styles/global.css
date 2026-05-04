@@ -1,3 +1,38 @@
+/* Fondo robusto que cubre siempre la ventana/documento (sin tocar tamaños) */
+html, body {
+  height: 100%;
+}
+
+/* Mantener variables por hora del día en body.* (no tocar) */
+/* ... tus reglas body.amanecer / body.mediodia / body.atardecer / body.noche ... */
+
+/* Quitar fondo directo del body y usar pseudo-elemento para el degradado */
+body {
+  background: none;
+  position: relative;
+  min-height: 100vh;
+}
+
+/* Pseudo-elemento fijo detrás de todo que pinta el degradado */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  background: var(--page-gradient);
+  background-repeat: no-repeat;
+  background-position: center center;
+  background-size: cover;
+  pointer-events: none;
+}
+
+/* Fallback si el navegador no soporta variables */
+@supports not (background: var(--page-gradient)) {
+  body::before {
+    background: linear-gradient(135deg, #a78bfa, #7dd3fc);
+  }
+}
+
 /* FONDOS SEGÚN LA HORA DEL DÍA */
 body.amanecer {
     --page-gradient: linear-gradient(135deg, #ff9a9e, #fad0c4);
@@ -49,7 +84,7 @@ body.noche {
 
 body {
     background: var(--page-gradient);
-    min-height: 94vh;
+    min-height: 100vh;
     display: flex;
     flex-direction: column;
     transition: background 1.5s ease-in-out;
@@ -59,7 +94,7 @@ body {
 .page-layout {
     display: flex;
     flex-direction: column;
-    min-height: 94vh;
+    min-height: 100vh;
 }
 
 .page-main-content {
