@@ -1,4 +1,5 @@
 import { useEffect } from "react";
+import { SpeedInsights } from "@vercel/speed-insights/react";
 import Footer from "./components/ui/Footer";
 import AppRouter from "./router/AppRouter";
 
@@ -32,6 +33,7 @@ function App() {
     <div className="page-layout">
       <AppRouter apiBase={apiBase} token={token} user={user} />
       <Footer />
+      <SpeedInsights />
     </div>
   );
 }
