@@ -1,7 +1,11 @@
+// src/api/entries.js
 import { buildHeaders } from '../utils/utils.js';
 
 const API_BASE = import.meta.env?.VITE_LOCAL_BACKEND || '';
 
+/**
+ * Helpers de parseo seguro
+ */
 async function readTextSafe(res) {
   try {
     return await res.text();
@@ -9,12 +13,13 @@ async function readTextSafe(res) {
     return '';
   }
 }
+
 async function parseJsonSafe(res) {
   const text = await readTextSafe(res);
   const contentType = res.headers?.get('content-type') || '';
 
   if (!res.ok) {
-    // Si el error es 401, el mensaje sera {"ok":false,"error":"sin_token"}
+    // Si el error es 401, el mensaje probablemente sea {"ok":false,"error":"sin_token"}
     const err = new Error(text || `HTTP ${res.status}`);
     err.status = res.status;
     err.raw = text;
@@ -39,44 +44,18 @@ async function parseJsonSafe(res) {
 }
 
 /**
- * Normalización mínima y no destructiva de una entrada para que el resto del flujo
- * siempre encuentre `emociones` (array), `intensidad` (Number|null) y `nota` (string|null)
- */
-function normalizeEntryForAnalysis(e) {
-  const raw = e || {};
-
-  // extraer emociones desde múltiples rutas
-  let emociones = [];
-  if (Array.isArray(raw.emociones)) emociones = raw.emociones;
-  else if (Array.isArray(raw.emotions)) emociones = raw.emotions;
-  else if (raw.suggested && Array.isArray(raw.suggested.emociones)) emociones = raw.suggested.emociones;
-  else if (raw.suggested && Array.isArray(raw.suggested.emotions)) emociones = raw.suggested.emotions;
-  else if (raw.analysis && raw.analysis.suggested && Array.isArray(raw.analysis.suggested.emociones)) emociones = raw.analysis.suggested.emociones;
-  else if (raw.analysis && raw.analysis.suggested && Array.isArray(raw.analysis.suggested.emotions)) emociones = raw.analysis.suggested.emotions;
-
-  // mapear objetos a strings si vienen como {label,name,emotion}
-  emociones = emociones
-    .map(x => (typeof x === 'string' ? x : (x?.label || x?.name || x?.emotion || null)))
-    .filter(Boolean);
-
-  // intensidad: normalizar a Number|null desde varias rutas
-  const intensidadRaw = raw.intensidad ?? raw.intensity ?? raw.suggested?.intensity ?? raw.suggested?.intensidad
-    ?? raw.analysis?.intensity ?? raw.analysis?.intensidad ?? raw.int ?? null;
-  const intensidad = intensidadRaw === null || intensidadRaw === undefined ? null : Number(intensidadRaw);
-
-  // nota
-  const nota = raw.nota ?? raw.note ?? raw.suggested?.note ?? raw.suggested?.nota ?? null;
-
-  // devolver copia no destructiva con campos garantizados
-  return Object.assign({}, raw, { emociones, intensidad, nota });
-}
-
-/**
  * GET /api/registros?month=YYYY-MM
- * - Intenta parsear JSON
+ *
+ * Implementación robusta y compatible:
+ * - Añade timeout con AbortController
+ * - Loggea status y body (truncado) para depuración
+ * - Intenta parsear JSON de forma tolerante y normaliza formatos comunes
+ * - Devuelve siempre un Array (o []) para mantener compatibilidad con el resto del código
+ *
+ * Nota: no se cambian las otras funciones del módulo.
  */
 export async function fetchEntriesByMonth(month, token) {
-  const DEFAULT_TIMEOUT_MS = 10000;
+  const DEFAULT_TIMEOUT_MS = 10000; // 10s
 
   if (!month) {
     console.warn('fetchEntriesByMonth: month vacío');
@@ -112,7 +91,7 @@ export async function fetchEntriesByMonth(month, token) {
     try {
       console.debug('fetchEntriesByMonth - url:', url);
       console.debug('fetchEntriesByMonth - status:', res.status);
-      console.debug('fetchEntriesByMonth - bodyText (trunc):', typeof bodyText === 'string' ? bodyText.slice(0, 20000) : bodyText);
+      console.debug('fetchEntriesByMonth - bodyText (trunc):', typeof bodyText === 'string' ? bodyText.slice(0, 2000) : bodyText);
     } catch (e) {
       // no bloquear por errores de logging
     }
@@ -135,32 +114,24 @@ export async function fetchEntriesByMonth(month, token) {
     // Si el status no es OK, devolver lo que tenga sentido (array si viene, o [] en fallback)
     if (!res.ok) {
       console.warn('fetchEntriesByMonth: respuesta HTTP no OK', { status: res.status, parsed });
-      if (Array.isArray(parsed)) {
-        return parsed.map(normalizeEntryForAnalysis);
-      }
-      if (parsed && Array.isArray(parsed.registros)) return parsed.registros.map(normalizeEntryForAnalysis);
-      if (parsed && Array.isArray(parsed.entries)) return parsed.entries.map(normalizeEntryForAnalysis);
+      if (Array.isArray(parsed)) return parsed;
+      if (parsed && Array.isArray(parsed.registros)) return parsed.registros;
+      if (parsed && Array.isArray(parsed.entries)) return parsed.entries;
       return [];
     }
 
-    // --- Normalizar y devolver siempre array de registros con campos esperados ---
-    let resultArray = [];
-    if (Array.isArray(parsed)) resultArray = parsed;
-    else if (parsed && Array.isArray(parsed.registros)) resultArray = parsed.registros;
-    else if (parsed && Array.isArray(parsed.entries)) resultArray = parsed.entries;
-    else if (parsed && parsed.data && Array.isArray(parsed.data.registros)) resultArray = parsed.data.registros;
-    else if (parsed && parsed.data && Array.isArray(parsed.data.entries)) resultArray = parsed.data.entries;
-    else resultArray = [];
+    // Normalizar formatos comunes y devolver siempre un array (o [])
+    if (Array.isArray(parsed)) return parsed;
+    if (parsed && Array.isArray(parsed.registros)) return parsed.registros;
+    if (parsed && Array.isArray(parsed.entries)) return parsed.entries;
+    if (parsed && parsed.data && Array.isArray(parsed.data.registros)) return parsed.data.registros;
+    if (parsed && parsed.data && Array.isArray(parsed.data.entries)) return parsed.data.entries;
 
-    // Normalizar cada entrada para que el resto del flujo reciba la forma esperada
-    const normalizedEntries = resultArray.map(normalizeEntryForAnalysis);
-
-    // Log de depuración (muestra solo 3 para no saturar)
-    try {
-      console.debug('fetchEntriesByMonth - normalized sample:', normalizedEntries.slice(0,3).map(e => ({ id: e._id || e.id, fecha: e.fecha || e.date, emocionesCount: (e.emociones||[]).length, intensidad: e.intensidad })));
-    } catch (e) { /* ignore */ }
-
-    return normalizedEntries;
+    // Si el servidor devolvió un objeto sin arrays esperados, intentar extraer arrays anidados
+    // o devolver [] para mantener compatibilidad.
+    // Log para depuración
+    console.warn('fetchEntriesByMonth: respuesta no contiene array esperado, devolviendo []', parsed);
+    return [];
   } catch (err) {
     clearTimeout(timeoutId);
     if (err.name === 'AbortError') {
@@ -176,7 +147,7 @@ export async function fetchEntriesByMonth(month, token) {
         const parsedCache = JSON.parse(raw);
         if (Array.isArray(parsedCache)) {
           console.debug('fetchEntriesByMonth: usando cache local como fallback, count:', parsedCache.length);
-          return parsedCache.map(normalizeEntryForAnalysis);
+          return parsedCache;
         }
       }
     } catch (e) {
@@ -196,12 +167,7 @@ export async function fetchEntryById(id, token) {
   const res = await fetch(url, {
     headers: buildHeaders(token)
   });
-  const parsed = await parseJsonSafe(res);
-  // Normalizar la entrada individual antes de devolver
-  if (parsed && typeof parsed === 'object') {
-    return normalizeEntryForAnalysis(parsed);
-  }
-  return parsed;
+  return parseJsonSafe(res);
 }
 
 /**
@@ -214,12 +180,7 @@ export async function createEntry(payload, token) {
     headers: buildHeaders(token),
     body: JSON.stringify(payload)
   });
-  const parsed = await parseJsonSafe(res);
-  // Normalizar la entrada creada si viene como objeto
-  if (parsed && typeof parsed === 'object') {
-    return normalizeEntryForAnalysis(parsed);
-  }
-  return parsed;
+  return parseJsonSafe(res);
 }
 
 /**
@@ -233,11 +194,7 @@ export async function updateEntry(id, payload, token) {
     headers: buildHeaders(token),
     body: JSON.stringify(payload)
   });
-  const parsed = await parseJsonSafe(res);
-  if (parsed && typeof parsed === 'object') {
-    return normalizeEntryForAnalysis(parsed);
-  }
-  return parsed;
+  return parseJsonSafe(res);
 }
 
 /**
@@ -250,9 +207,5 @@ export async function syncPending(items = [], token) {
     headers: buildHeaders(token),
     body: JSON.stringify({ items })
   });
-  const parsed = await parseJsonSafe(res);
-  // Si devuelve array de registros, normalizarlos
-  if (Array.isArray(parsed)) return parsed.map(normalizeEntryForAnalysis);
-  if (parsed && Array.isArray(parsed.registros)) return parsed.registros.map(normalizeEntryForAnalysis);
-  return parsed;
+  return parseJsonSafe(res);
 }

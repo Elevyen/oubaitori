@@ -27,7 +27,6 @@
 .react-calendar__tile {
     padding: 5px !important;
     height: 56px !important;
-    /* 85px * 0.66 ≈ 56px */
     display: flex !important;
     flex-direction: column !important;
     align-items: center !important;

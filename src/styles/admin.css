@@ -1,27 +1,17 @@
-/* admin.css
-   Estilos específicos para la página Administración Oubaitori.
-   No modifica global.css; usa sus variables de color.
-*/
-
-/* Contenedor principal: ampliar para evitar scroll horizontal */
 .admin-container {
     max-width: 1400px;
-    /* ampliado desde 1100px */
     margin: 24px auto;
     padding: 0 16px;
     box-sizing: border-box;
 }
 
-/* Card: permitir que la card crezca y no recorte dropdowns */
 .admin-container>.card,
 .admin-container .card {
     width: 100%;
     max-width: none;
     overflow: visible;
-    /* importante para dropdowns y botones */
 }
 
-/* Cabecera */
 .admin-header {
     display: flex;
     justify-content: space-between;
@@ -35,16 +25,13 @@
     font-size: 0.95rem;
 }
 
-/* Tabla: permitir que columnas se adapten al contenido */
 .admin-table {
     width: 100%;
     border-collapse: collapse;
     font-size: 0.95rem;
     table-layout: auto;
-    /* permitir ajuste dinámico de columnas */
 }
 
-/* Encabezados */
 .admin-table thead th {
     text-align: left;
     padding: 10px 12px;
@@ -54,7 +41,6 @@
     border-bottom: 1px solid rgba(0, 0, 0, 0.06);
 }
 
-/* Celdas: truncado elegante y evitar overflow */
 .admin-table tbody td {
     padding: 10px 12px;
     border-bottom: 1px dashed rgba(0, 0, 0, 0.03);
@@ -64,22 +50,18 @@
     white-space: nowrap;
 }
 
-/* Reservar espacio para la columna de acciones sin forzar scroll */
 .admin-table th:last-child,
 .admin-table td:last-child {
     width: 180px;
-    /* compacto pero suficiente */
     min-width: 140px;
     text-align: right;
     white-space: nowrap;
 }
 
-/* fila seleccionada */
 .row-selected {
     background: linear-gradient(90deg, rgba(128, 0, 128, 0.03), rgba(255, 192, 203, 0.02));
 }
 
-/* Inputs y selects */
 .input-small {
     width: 100%;
     padding: 6px 8px;
@@ -101,7 +83,6 @@
     color: var(--muted);
 }
 
-/* Texto cuando no editable */
 .cell-text {
     color: var(--muted);
     display: inline-block;
@@ -111,7 +92,6 @@
     white-space: nowrap;
 }
 
-/* Botones: base y variantes (respetan variables de global.css) */
 .btn {
     display: inline-flex;
     align-items: center;
@@ -139,32 +119,27 @@
     border-radius: 6px;
 }
 
-/* Variante de peligro */
 .btn.danger {
     background: linear-gradient(90deg, var(--danger), var(--danger-dark));
     color: #fff;
     border: none;
 }
 
-/* Agrupar acciones dentro de la celda y controlar separación */
 .admin-table td .actions-row {
     display: inline-flex;
     align-items: center;
     justify-content: flex-end;
     gap: 8px;
     flex-wrap: wrap;
-    /* permite que botones no se solapen */
     z-index: 4;
 }
 
-/* Forzar que botones no rompan la fila en pantallas pequeñas */
 .admin-table td .actions-row .btn {
     min-width: 44px;
     padding: 6px 8px;
     box-sizing: border-box;
 }
 
-/* Papelera: asegurar contraste y que no quede oculto */
 .admin-table td .actions-row .btn.danger {
     display: inline-flex;
     align-items: center;
@@ -175,7 +150,6 @@
     z-index: 6;
 }
 
-/* Icono papelera: tamaño y alineado */
 .admin-table td .actions-row .btn.danger svg,
 .admin-table td .actions-row .btn.danger .trash-icon {
     display: inline-block;
@@ -183,31 +157,26 @@
     font-size: 1rem;
 }
 
-/* Asegurar que selects y dropdowns se muestren por encima */
 .admin-table select,
 .admin-table input {
     position: relative;
     z-index: 10;
 }
 
-/* Si el componente Card aplica overflow hidden, forzamos visible solo para admin */
 .admin-container .card,
 .admin-container>.card {
     overflow: visible;
 }
 
-/* Mensajes y errores */
 .error {
     color: var(--danger);
     margin-top: 8px;
 }
 
-/* Evitar scroll interno en el main content */
 .page-main-content {
     overflow-x: visible;
 }
 
-/* Compactar botones y permitir icon-only en pantallas intermedias */
 .admin-table td .actions-row .btn.trash-only {
     padding: 6px;
     width: 36px;
@@ -216,14 +185,12 @@
     justify-content: center;
 }
 
-/* Ocultar texto de algunos botones en pantallas más estrechas para ahorrar espacio */
 @media (max-width: 1100px) {
     .admin-table td .actions-row .btn.hide-on-mobile {
         display: none;
     }
 }
 
-/* Responsive: apilar contenido y ajustar acciones en móvil */
 @media (max-width: 820px) {
     .admin-header {
         flex-direction: column;
