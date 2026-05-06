@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import '../styles/modal.css';
 
-//Array de emociones
 const EMOTIONS = [
     { id: 'alegria', label: 'Alegría', emoji: '😊', tipo: 'buena', color: '#F2D94E', textColor: '#111111' },
     { id: 'amor', label: 'Amor', emoji: '❤️', tipo: 'buena', color: '#FF9FB3', textColor: '#111111' },
@@ -86,7 +85,7 @@ const EMOTIONS = [
     { id: 'hormigueo', label: 'Hormigueo', emoji: '🫢', tipo: 'neutra', color: '#FFE0B2', textColor: '#111111' }
 ];
 
-//Formato fecha
+//Formato de fecha
 function formatDateDDMMYYYY(d) {
     if (!d) return '';
     if (typeof d === 'string') {
@@ -107,7 +106,6 @@ function formatDateDDMMYYYY(d) {
     if (m) return `${m[1]}${m[2]}${m[3]}`;
     return String(d);
 }
-
 //Encriptado
 function base64ToArrayBuffer(base64) {
     const binary = atob(base64);
@@ -124,22 +122,31 @@ function arrayBufferToBase64(buffer) {
 }
 async function importAesKeyFromBase64(base64Key) {
     const raw = base64ToArrayBuffer(base64Key);
+    if (!(raw && raw.byteLength === 32)) {
+        throw new Error('invalid_key_length');
+    }
     return await crypto.subtle.importKey('raw', raw, 'AES-GCM', false, ['encrypt', 'decrypt']);
 }
-async function encryptAesGcmBase64(plainText, base64Key) {
+async function encryptAesGcmBase64BackendFormat(plainText, base64Key) {
     if (!plainText) return null;
     const key = await importAesKeyFromBase64(base64Key);
     const iv = crypto.getRandomValues(new Uint8Array(12));
     const enc = new TextEncoder();
     const data = enc.encode(String(plainText));
     const cipherBuffer = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, data);
-    const combined = new Uint8Array(iv.byteLength + cipherBuffer.byteLength);
+    const cipherBytes = new Uint8Array(cipherBuffer);
+    const tagLen = 16;
+    if (cipherBytes.length < tagLen) throw new Error('cipher_too_short');
+    const ciphertext = cipherBytes.slice(0, cipherBytes.length - tagLen);
+    const tag = cipherBytes.slice(cipherBytes.length - tagLen);
+    const combined = new Uint8Array(iv.byteLength + tag.byteLength + ciphertext.byteLength);
     combined.set(iv, 0);
-    combined.set(new Uint8Array(cipherBuffer), iv.byteLength);
+    combined.set(tag, iv.byteLength);
+    combined.set(ciphertext, iv.byteLength + tag.byteLength);
     return arrayBufferToBase64(combined.buffer);
 }
 
-//Comprobamos que el id es string
+//Asegura que ID es string
 function ensureIdsAreStrings(obj) {
     if (!obj || typeof obj !== 'object') return obj;
     const copy = { ...obj };
@@ -156,15 +163,15 @@ function ensureIdsAreStrings(obj) {
 function generateClientId() {
     try {
         if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') return crypto.randomUUID();
-    } catch (e) { }
+    } catch (e) {}
     return `local-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
 }
 
-//Guardamos registro
+//guardarRegistro
 async function defaultGuardarRegistro(payload, { token, apiBase = '' } = {}) {
     if (!token) {
         const err = new Error('Usuario no autenticado');
-        err.code = 'No autenticado';
+        err.code = 'Usuario no autenticado';
         throw err;
     }
     const safePayload = ensureIdsAreStrings(payload || {});
@@ -242,11 +249,11 @@ async function defaultGuardarRegistro(payload, { token, apiBase = '' } = {}) {
     throw err;
 }
 
-//Sincronización
+//Sincroniza 
 async function defaultSincronizar({ token, apiBase = '' } = {}) {
     if (!token) {
         const err = new Error('Usuario no autenticado');
-        err.code = 'No autenticado';
+        err.code = 'Usuario no autenticado';
         throw err;
     }
     let pendientes = [];
@@ -272,8 +279,8 @@ async function defaultSincronizar({ token, apiBase = '' } = {}) {
     });
     const json = await res.json().catch(() => ({}));
     if (!res.ok) {
-        const err = new Error(json.message || 'error_sincronizar');
-        err.code = json.error || 'error_sincronizar';
+        const err = new Error(json.message || 'Error al sincronizar');
+        err.code = json.error || 'Error al sincronizar';
         throw err;
     }
     if (json.actualizados && json.actualizados.length > 0) {
@@ -282,7 +289,7 @@ async function defaultSincronizar({ token, apiBase = '' } = {}) {
     return json;
 }
 
-//Usar cache local por salvar fallos
+//Uso de cache
 function clearLocalRecordCacheForDateOrId({ id, fecha }) {
     try {
         const raw = localStorage.getItem('pendingRegistros');
@@ -295,13 +302,13 @@ function clearLocalRecordCacheForDateOrId({ id, fecha }) {
 
     try {
         Object.keys(localStorage).filter(k => /registro|registros|pending|entradas|entradasCache|analisis/i.test(k)).forEach(k => {
-            try { localStorage.removeItem(k); } catch (e) { }
+            try { localStorage.removeItem(k); } catch (e) {}
         });
     } catch (e) {
         console.warn('clearLocalRecordCacheForDateOrId localStorage error', e);
     }
 
-    try { sessionStorage.clear(); } catch (e) { }
+    try { sessionStorage.clear(); } catch (e) {}
 }
 
 function hasExistingForDate(dateString, existingEntryProp) {
@@ -313,17 +320,16 @@ function hasExistingForDate(dateString, existingEntryProp) {
         const rawPend = localStorage.getItem('pendingRegistros');
         const pendientes = rawPend ? JSON.parse(rawPend) : [];
         if (Array.isArray(pendientes) && pendientes.find(p => formatDateDDMMYYYY(p.fecha) === keyDate)) return true;
-    } catch (e) { }
+    } catch (e) {}
 
     try {
         const rawCache = localStorage.getItem('entradasCache_v1');
         const cache = rawCache ? JSON.parse(rawCache) : [];
         if (Array.isArray(cache) && cache.find(r => formatDateDDMMYYYY(r.fecha) === keyDate)) return true;
-    } catch (e) { }
+    } catch (e) {}
 
     return false;
 }
-
 
 export default function RegistroEmocional({
     open,
@@ -337,9 +343,6 @@ export default function RegistroEmocional({
     sincronizarConServidor: sincronizarProp,
     apiBase = '',
     existingEntry = false,
-    // Opcional: función que encripta nota en cliente (preferida)
-    encryptNotaClient,
-    // Opcional: clave AES-256 en base64 (32 bytes raw -> base64). Si se pasa, se usa para AES-GCM local.
     notaKeyBase64
 }) {
     const normalizeEmotion = (e) => {
@@ -596,23 +599,19 @@ export default function RegistroEmocional({
         }
     }
 
-    // Encriptar nota en cliente: usa encryptNotaClient o notaKeyBase64 (AES-GCM)
+    // Encriptar nota en cliente usando notaKeyBase64 (única opción)
     async function encryptNotaOrThrow(plain) {
         if (!plain) return null;
-        if (typeof encryptNotaClient === 'function') {
-            const maybe = encryptNotaClient(String(plain));
-            return (maybe && typeof maybe.then === 'function') ? await maybe : maybe;
+        if (typeof notaKeyBase64 !== 'string' || !notaKeyBase64.trim()) {
+            throw new Error('encrypt_not_configured');
         }
-        if (typeof notaKeyBase64 === 'string' && notaKeyBase64.trim()) {
-            // notaKeyBase64 debe ser base64 de 32 bytes (256 bits)
-            try {
-                return await encryptAesGcmBase64(String(plain), notaKeyBase64);
-            } catch (e) {
-                console.error('encryptAesGcmBase64 failed', e);
-                throw new Error('encrypt_failed');
-            }
+        try {
+            return await encryptAesGcmBase64BackendFormat(String(plain), notaKeyBase64);
+        } catch (e) {
+            console.error('encryptAesGcmBase64BackendFormat failed', e);
+            if (e.message === 'invalid_key_length') throw new Error('encrypt_invalid_key');
+            throw new Error('encrypt_failed');
         }
-        throw new Error('encrypt_not_configured');
     }
 
     async function submit() {
@@ -622,7 +621,7 @@ export default function RegistroEmocional({
             const resolvedUserId = resolveUserId(usuario);
             if (!resolvedUserId) {
                 const err = new Error('Usuario no autenticado');
-                err.code = 'No autenticado';
+                err.code = 'Usuario no autenticado';
                 throw err;
             }
             if (!token) {
@@ -672,8 +671,8 @@ export default function RegistroEmocional({
                 notaEncryptedToSend = await encryptNotaOrThrow(note || '');
             } catch (encErr) {
                 console.error('encryptNota failed:', encErr);
-                const err = new Error('No se pudo encriptar la nota. Intenta de nuevo más tarde.');
-                err.code = encErr.message === 'encrypt_not_configured' ? 'encrypt_not_configured' : 'encrypt_failed';
+                const err = new Error(encErr.message === 'encrypt_not_configured' ? 'No hay método de encriptación configurado.' : 'No se pudo encriptar la nota. Intenta de nuevo más tarde.');
+                err.code = encErr.message === 'encrypt_not_configured' ? 'encrypt_not_configured' : (encErr.message === 'encrypt_invalid_key' ? 'encrypt_invalid_key' : 'encrypt_failed');
                 throw err;
             }
             carga.notaEncrypted = notaEncryptedToSend;
@@ -682,7 +681,7 @@ export default function RegistroEmocional({
 
             try {
                 console.debug('RegistroEmocional submit payload (sanitized):', { fecha: safeCarga.fecha, id: safeCarga.id, notaEncryptedPresent: !!safeCarga.notaEncrypted });
-            } catch (e) { }
+            } catch (e) {}
 
             let guardado;
             try {
@@ -732,7 +731,7 @@ export default function RegistroEmocional({
             if (err && (err.code === 'No encontrado' || String(err.message).toLowerCase().includes('no encontrado') || String(err.message).toLowerCase().includes('not found'))) {
                 try {
                     clearLocalRecordCacheForDateOrId({ id: initial && (initial.id || initial._id), fecha: formatDateDDMMYYYY(date) });
-                } catch (e) { }
+                } catch (e) {}
             }
 
             if (err && err.code === 'limite_dia_alcanzado') {
@@ -741,12 +740,14 @@ export default function RegistroEmocional({
                 setError('No se encontró el registro a editar. Intenta recargar la página.');
             } else if (err && err.code === 'error_actualizando') {
                 setError('No se pudo actualizar el registro. Intenta de nuevo más tarde.');
-            } else if (err && (err.code === 'No autenticado' || err.code === 'no_token' || err.code === 'no_autorizado')) {
+            } else if (err && (err.code === 'Usuario no autenticado' || err.code === 'no_token' || err.code === 'no_autorizado')) {
                 setError('Usuario no autenticado. Inicia sesión e inténtalo de nuevo.');
             } else if (err && err.code === 'encrypt_failed') {
                 setError('No se pudo encriptar la nota. Intenta de nuevo más tarde.');
             } else if (err && err.code === 'encrypt_not_configured') {
                 setError('No hay método de encriptación configurado. Contacta con la app.');
+            } else if (err && err.code === 'encrypt_invalid_key') {
+                setError('Clave de encriptación inválida. Contacta con la app.');
             } else {
                 setError(err.message || 'No se pudo guardar el registro.');
             }
@@ -879,7 +880,7 @@ export default function RegistroEmocional({
                             aria-label="Nota"
                         />
                         <div style={{ marginTop: 6, fontSize: 12, color: '#666' }}>
-                            La nota se encriptará en el cliente y se enviará como notaEncrypted (base64).
+                            La nota se encriptará en el cliente y se enviará como notaEncrypted (base64 iv|tag|ciphertext).
                         </div>
                     </label>
                 </div>
