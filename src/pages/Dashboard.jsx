@@ -34,6 +34,7 @@ const API_BASE =
   "";
 
 export default function Dashboard() {
+  const notaKey = (typeof window !== 'undefined') ? (import.meta.env.VITE_NOTA_MASTER_KEY || null) : null;
   const { user, setUser } = useContext(AuthContext) || {};
   const navigate = useNavigate();
   const [recomendacion] = useState(() => getRecomendacionAleatoria());
