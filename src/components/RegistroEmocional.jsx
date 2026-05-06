@@ -86,26 +86,43 @@ const EMOTIONS = [
 ];
 
 //Formato de fecha
+// Devuelve "DD-MM-YYYY"
 function formatDateDDMMYYYY(d) {
     if (!d) return '';
+    // Si ya viene como "DD-MM-YYYY"
     if (typeof d === 'string') {
-        if (/^\d{8}$/.test(d)) return d; // DDMMYYYY
-        if (/^\d{2}-\d{2}-\d{4}$/.test(d)) return d.replace(/-/g, ''); // DD-MM-YYYY --> DDMMYYYY
+        if (/^\d{2}-\d{2}-\d{4}$/.test(d)) return d;
+        // Si viene como "DDMMYYYY"
+        if (/^\d{8}$/.test(d)) return `${d.slice(0, 2)}-${d.slice(2, 4)}-${d.slice(4, 8)}`;
+        // Si viene como "YYYY-MM-DD"
         if (/^\d{4}-\d{2}-\d{2}$/.test(d)) {
             const [yyyy, mm, dd] = d.split('-');
-            return `${dd}${mm}${yyyy}`; // YYYY-MM-DD --> DDMMYYYY
+            return `${dd}-${mm}-${yyyy}`;
         }
     }
+
+    // Si es Date u otro input
     const dt = (d instanceof Date) ? d : new Date(d);
     if (dt instanceof Date && !isNaN(dt)) {
-        const iso = dt.toLocaleDateString('sv-SE'); // YYYY-MM-DD
-        const [yyyy, mm, dd] = String(iso).split('-');
-        return `${dd}${mm}${yyyy}`;
+        const dd = String(dt.getDate()).padStart(2, '0');
+        const mm = String(dt.getMonth() + 1).padStart(2, '0');
+        const yyyy = String(dt.getFullYear());
+        return `${dd}-${mm}-${yyyy}`;
     }
+
+    // Fallback: intentar extraer con regex
     const m = String(d).match(/(\d{2})[^\d]?(\d{2})[^\d]?(\d{4})/);
-    if (m) return `${m[1]}${m[2]}${m[3]}`;
+    if (m) return `${m[1]}-${m[2]}-${m[3]}`;
     return String(d);
 }
+
+// Devuelve "DDMMYYYY" (clave interna, sin guiones) para comparaciones locales
+function formatDateKey(d) {
+  const s = formatDateDDMMYYYY(d);
+  if (!s) return '';
+  return String(s).replace(/-/g, '');
+}
+
 //Encriptado
 function base64ToArrayBuffer(base64) {
     const binary = atob(base64);
@@ -163,7 +180,7 @@ function ensureIdsAreStrings(obj) {
 function generateClientId() {
     try {
         if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') return crypto.randomUUID();
-    } catch (e) {}
+    } catch (e) { }
     return `local-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
 }
 
@@ -294,7 +311,7 @@ function clearLocalRecordCacheForDateOrId({ id, fecha }) {
     try {
         const raw = localStorage.getItem('pendingRegistros');
         const pendientes = raw ? JSON.parse(raw) : [];
-        const nuevos = pendientes.filter(p => String(p.id || p._id) !== String(id) && formatDateDDMMYYYY(p.fecha) !== formatDateDDMMYYYY(fecha));
+        const nuevos = pendientes.filter(p => String(p.id || p._id) !== String(id) && formatDateKey(p.fecha) !== formatDateKey(fecha));
         localStorage.setItem('pendingRegistros', JSON.stringify(nuevos));
     } catch (e) {
         console.warn('clearLocalRecordCacheForDateOrId pending error', e);
@@ -302,31 +319,31 @@ function clearLocalRecordCacheForDateOrId({ id, fecha }) {
 
     try {
         Object.keys(localStorage).filter(k => /registro|registros|pending|entradas|entradasCache|analisis/i.test(k)).forEach(k => {
-            try { localStorage.removeItem(k); } catch (e) {}
+            try { localStorage.removeItem(k); } catch (e) { }
         });
     } catch (e) {
         console.warn('clearLocalRecordCacheForDateOrId localStorage error', e);
     }
 
-    try { sessionStorage.clear(); } catch (e) {}
+    try { sessionStorage.clear(); } catch (e) { }
 }
 
 function hasExistingForDate(dateString, existingEntryProp) {
-    const keyDate = formatDateDDMMYYYY(dateString);
+    const keyDate = formatDateKey(dateString);
     if (!keyDate) return false;
     if (existingEntryProp) return true;
 
     try {
         const rawPend = localStorage.getItem('pendingRegistros');
         const pendientes = rawPend ? JSON.parse(rawPend) : [];
-        if (Array.isArray(pendientes) && pendientes.find(p => formatDateDDMMYYYY(p.fecha) === keyDate)) return true;
-    } catch (e) {}
+        if (Array.isArray(pendientes) && pendientes.find(p => formatDateKey(p.fecha) === keyDate)) return true;
+    } catch (e) { }
 
     try {
         const rawCache = localStorage.getItem('entradasCache_v1');
         const cache = rawCache ? JSON.parse(rawCache) : [];
-        if (Array.isArray(cache) && cache.find(r => formatDateDDMMYYYY(r.fecha) === keyDate)) return true;
-    } catch (e) {}
+        if (Array.isArray(cache) && cache.find(r => formatDateKey(r.fecha) === keyDate)) return true;
+    } catch (e) { }
 
     return false;
 }
@@ -586,8 +603,9 @@ export default function RegistroEmocional({
 
     function isWithinLastNDays(dateString, n) {
         try {
-            const f = formatDateDDMMYYYY(dateString);
-            const target = new Date(`${f.slice(4, 8)}-${f.slice(2, 4)}-${f.slice(0, 2)}`);
+            const key = formatDateKey(dateString);
+            if (!key || key.length !== 8) return false;
+            const target = new Date(`${key.slice(4, 8)}-${key.slice(2, 4)}-${key.slice(0, 2)}`);
             if (isNaN(target)) return false;
             const today = new Date();
             target.setHours(0, 0, 0, 0);
@@ -681,7 +699,7 @@ export default function RegistroEmocional({
 
             try {
                 console.debug('RegistroEmocional submit payload (sanitized):', { fecha: safeCarga.fecha, id: safeCarga.id, notaEncryptedPresent: !!safeCarga.notaEncrypted });
-            } catch (e) {}
+            } catch (e) { }
 
             let guardado;
             try {
@@ -731,7 +749,7 @@ export default function RegistroEmocional({
             if (err && (err.code === 'No encontrado' || String(err.message).toLowerCase().includes('no encontrado') || String(err.message).toLowerCase().includes('not found'))) {
                 try {
                     clearLocalRecordCacheForDateOrId({ id: initial && (initial.id || initial._id), fecha: formatDateDDMMYYYY(date) });
-                } catch (e) {}
+                } catch (e) { }
             }
 
             if (err && err.code === 'limite_dia_alcanzado') {
@@ -764,7 +782,7 @@ export default function RegistroEmocional({
 
     const formattedDate = (() => {
         const f = formatDateDDMMYYYY(date);
-        if (f && f.length === 8) return `${f.slice(0, 2)}-${f.slice(2, 4)}-${f.slice(4, 8)}`;
+        if (f && /^\d{2}-\d{2}-\d{4}$/.test(f)) return f;
         return String(date || '');
     })();
 
@@ -880,7 +898,7 @@ export default function RegistroEmocional({
                             aria-label="Nota"
                         />
                         <div style={{ marginTop: 6, fontSize: 12, color: '#666' }}>
-                            La nota se encriptará en el cliente y se enviará como notaEncrypted (base64 iv|tag|ciphertext).
+                            La nota se encriptará,tus datos están seguros.
                         </div>
                     </label>
                 </div>
