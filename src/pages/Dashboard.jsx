@@ -20,7 +20,7 @@ const RECOMENDACIONES = [
   "Relaja la mandíbula para liberar tensión."
 ];
 
-
+const notaKey = (typeof window !== 'undefined') ? (import.meta.env.VITE_NOTA_MASTER_KEY || null) : null;
 const _inFlightAnalisis = new Map(); // fecha Promise
 const _lastFetchTimestamp = new Map(); // fecha ms timestamp
 const MIN_FETCH_INTERVAL_MS = 300 * 1000; // 5m mínimo entre fetchs para la misma fecha
@@ -44,13 +44,6 @@ export default function Dashboard() {
     } catch {
       return null;
     }
-  }, []);
-  const [notaKey, setNotaKey] = useState(null);
-
-  useEffect(() => {
-    // Solo en cliente
-    const key = process.env.VITE_NOTA_MASTER_KEY || null;
-    setNotaKey(key);
   }, []);
   useEffect(() => {
     if (!user && storedUser && typeof setUser === "function") {
