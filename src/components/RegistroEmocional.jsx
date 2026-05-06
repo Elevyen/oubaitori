@@ -142,7 +142,6 @@ async function sha256Hex(text) {
     return bufferToHex(hashBuffer);
 }
 
-/* ----------------- utilidades locales y defensivas ----------------- */
 function ensureIdsAreStrings(obj) {
     if (!obj || typeof obj !== "object") return obj;
     const copy = { ...obj };
@@ -159,7 +158,6 @@ function ensureIdsAreStrings(obj) {
     return copy;
 }
 
-/* ----------------- defaultGuardarRegistro (cliente) ----------------- */
 async function defaultGuardarRegistro(payload, { token, apiBase = '' } = {}) {
     if (!token) {
         const err = new Error('Usuario no autenticado');
@@ -452,7 +450,6 @@ export default function RegistroEmocional({
             if (!filtered.find(e => e.emoji === emoji)) setEmoji('');
             return filtered;
         });
-        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [tagsText]);
 
     const isEditingToday = useMemo(() => {
@@ -534,7 +531,6 @@ export default function RegistroEmocional({
 
         loadRegistro();
         return () => { cancelled = true; };
-        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [open, initial && (initial.id || initial._id), apiBase, token]);
 
     useEffect(() => {
@@ -558,7 +554,6 @@ export default function RegistroEmocional({
             }
         }
         prevOpenRef.current = open;
-        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [open, initial?.id, isEditingToday]);
 
     const togglePreset = (e) => {

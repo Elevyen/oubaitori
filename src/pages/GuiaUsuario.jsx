@@ -39,7 +39,6 @@ export default function GuiaUsuario({ apiBase = '', token = null, user = null })
                         </a>
                     </div>
                 </div>
-
                 <div style={{ marginTop: 24, display: 'flex', justifyContent: 'center' }}>
                     <button
                         type="button"

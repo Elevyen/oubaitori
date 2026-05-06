@@ -66,7 +66,6 @@ export default function PerfilAdmin() {
         fetchUsers();
         fetchPersonajes();
         fetchMensajes();
-        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     /* ------------------ Usuarios ------------------ */
@@ -420,7 +419,6 @@ export default function PerfilAdmin() {
                         onClick={stop}
                     />
                 </td>
-
                 <td>
                     <input
                         value={u.email || ""}
@@ -430,7 +428,6 @@ export default function PerfilAdmin() {
                         onClick={stop}
                     />
                 </td>
-
                 <td>{editable ? (
                     <select value={generoValue} onChange={(e) => { stop(e); handleChange(u._id, "genero", e.target.value); }} className="input-small" onClick={stop}>
                         {/* Sin opción vacía */}

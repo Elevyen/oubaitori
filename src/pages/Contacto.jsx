@@ -119,20 +119,16 @@ export default function ContactoPage({ apiBase = defaultApiBase, token = null, u
             <button className="btn-secondary" onClick={goBack} style={{ padding: '8px 16px' }}>
               Volver a la página anterior
             </button>
-
             <button
               className="btn-secondary"
               onClick={() => { setSubmitted(false); setStatus(null); setSavedEmail(null); }}
               style={{ padding: '8px 16px' }}
-            >
-              Enviar otro mensaje
-            </button>
+            >Enviar otro mensaje</button>
           </div>
         </Card>
       </main>
     );
   }
-
   return (
     <main aria-labelledby="contacto-title" className="contacto-page">
       <h1 id="contacto-title">Contacto</h1>
@@ -141,8 +137,7 @@ export default function ContactoPage({ apiBase = defaultApiBase, token = null, u
           <legend className="sr-only">Tipo de mensaje</legend>
           <div role="radiogroup" aria-label="Tipo de mensaje" style={{ display: 'flex', gap: 12 }}>
             <label>
-              <input
-                type="radio"
+              <input type="radio"
                 name="tipo"
                 value="sugerencia"
                 checked={tipo === 'sugerencia'}

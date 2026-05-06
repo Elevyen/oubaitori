@@ -18,7 +18,7 @@ export default function CalendarView({ month, onDayClick, entries = [] }) {
         return `${yyyy}-${mm}-${dd}`;
     };
 
-    // Identifica el día de hoy para resaltar (comparación en hora local)
+    // Identifica el día de hoy para resaltar
     const getTileClassName = ({ date, view }) => {
         if (view === 'month') {
             const dateStr = formatLocalISO(date);
