@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import '../styles/modal.css';
 
+//Array de emociones
 const EMOTIONS = [
     { id: 'alegria', label: 'Alegría', emoji: '😊', tipo: 'buena', color: '#F2D94E', textColor: '#111111' },
     { id: 'amor', label: 'Amor', emoji: '❤️', tipo: 'buena', color: '#FF9FB3', textColor: '#111111' },
@@ -85,97 +86,92 @@ const EMOTIONS = [
     { id: 'hormigueo', label: 'Hormigueo', emoji: '🫢', tipo: 'neutra', color: '#FFE0B2', textColor: '#111111' }
 ];
 
-
-/* ----------------- utilidades de fecha y hashing ----------------- */
-function formatDateYYYYMMDD(d) {
-    if (!d) return '';
-    let dt;
-    if (typeof d === 'string') {
-        if (/^\d{4}-\d{2}-\d{2}$/.test(d)) return d;
-        const m = d.match(/^(\d{4})-(\d{2})-(\d{2})/);
-        if (m) return `${m[1]}-${m[2]}-${m[3]}`;
-        dt = new Date(d);
-    } else {
-        dt = d;
-    }
-    if (!(dt instanceof Date) || isNaN(dt)) return String(d);
-    const yyyy = dt.getFullYear();
-    const mm = String(dt.getMonth() + 1).padStart(2, '0');
-    const dd = String(dt.getDate()).padStart(2, '0');
-    return `${yyyy}-${mm}-${dd}`;
-}
-
+//Formato fecha
 function formatDateDDMMYYYY(d) {
     if (!d) return '';
     if (typeof d === 'string') {
-        if (/^\d{2}-\d{2}-\d{4}$/.test(d)) return d;
-        const m = d.match(/^(\d{4})-(\d{2})-(\d{2})/);
-        if (m) return `${m[3]}-${m[2]}-${m[1]}`;
-        const parsed = new Date(d);
-        if (!isNaN(parsed)) {
-            const dd = String(parsed.getDate()).padStart(2, '0');
-            const mm = String(parsed.getMonth() + 1).padStart(2, '0');
-            const yyyy = parsed.getFullYear();
-            return `${dd}-${mm}-${yyyy}`;
+        if (/^\d{8}$/.test(d)) return d; // DDMMYYYY
+        if (/^\d{2}-\d{2}-\d{4}$/.test(d)) return d.replace(/-/g, ''); // DD-MM-YYYY --> DDMMYYYY
+        if (/^\d{4}-\d{2}-\d{2}$/.test(d)) {
+            const [yyyy, mm, dd] = d.split('-');
+            return `${dd}${mm}${yyyy}`; // YYYY-MM-DD --> DDMMYYYY
         }
-        return d;
     }
-    if (d instanceof Date && !isNaN(d)) {
-        const dd = String(d.getDate()).padStart(2, '0');
-        const mm = String(d.getMonth() + 1).padStart(2, '0');
-        const yyyy = d.getFullYear();
-        return `${dd}-${mm}-${yyyy}`;
+    const dt = (d instanceof Date) ? d : new Date(d);
+    if (dt instanceof Date && !isNaN(dt)) {
+        const iso = dt.toLocaleDateString('sv-SE'); // YYYY-MM-DD
+        const [yyyy, mm, dd] = String(iso).split('-');
+        return `${dd}${mm}${yyyy}`;
     }
+    const m = String(d).match(/(\d{2})[^\d]?(\d{2})[^\d]?(\d{4})/);
+    if (m) return `${m[1]}${m[2]}${m[3]}`;
     return String(d);
 }
 
-function bufferToHex(buffer) {
+//Encriptado
+function base64ToArrayBuffer(base64) {
+    const binary = atob(base64);
+    const len = binary.length;
+    const bytes = new Uint8Array(len);
+    for (let i = 0; i < len; i++) bytes[i] = binary.charCodeAt(i);
+    return bytes.buffer;
+}
+function arrayBufferToBase64(buffer) {
     const bytes = new Uint8Array(buffer);
-    return Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join('');
+    let binary = '';
+    for (let i = 0; i < bytes.byteLength; i++) binary += String.fromCharCode(bytes[i]);
+    return btoa(binary);
 }
-
-async function sha256Hex(text) {
-    if (!text) return '';
+async function importAesKeyFromBase64(base64Key) {
+    const raw = base64ToArrayBuffer(base64Key);
+    return await crypto.subtle.importKey('raw', raw, 'AES-GCM', false, ['encrypt', 'decrypt']);
+}
+async function encryptAesGcmBase64(plainText, base64Key) {
+    if (!plainText) return null;
+    const key = await importAesKeyFromBase64(base64Key);
+    const iv = crypto.getRandomValues(new Uint8Array(12));
     const enc = new TextEncoder();
-    const data = enc.encode(text);
-    const hashBuffer = await crypto.subtle.digest('SHA-256', data);
-    return bufferToHex(hashBuffer);
+    const data = enc.encode(String(plainText));
+    const cipherBuffer = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, data);
+    const combined = new Uint8Array(iv.byteLength + cipherBuffer.byteLength);
+    combined.set(iv, 0);
+    combined.set(new Uint8Array(cipherBuffer), iv.byteLength);
+    return arrayBufferToBase64(combined.buffer);
 }
 
+//Comprobamos que el id es string
 function ensureIdsAreStrings(obj) {
-    if (!obj || typeof obj !== "object") return obj;
+    if (!obj || typeof obj !== 'object') return obj;
     const copy = { ...obj };
     if (copy._id !== undefined) {
         try {
-            copy._id = copy._id && typeof copy._id.toString === "function" ? String(copy._id.toString()) : String(copy._id || "");
+            copy._id = copy._id && typeof copy._id.toString === 'function' ? String(copy._id.toString()) : String(copy._id || '');
         } catch {
-            copy._id = String(copy._id || "");
+            copy._id = String(copy._id || '');
         }
     }
-    if (copy.id !== undefined) copy.id = String(copy.id || "");
-    if (copy.usuarioId !== undefined) copy.usuarioId = String(copy.usuarioId || "");
-    if (copy.userId !== undefined) copy.userId = String(copy.userId || "");
+    if (copy.id !== undefined) copy.id = String(copy.id || '');
     return copy;
 }
+function generateClientId() {
+    try {
+        if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') return crypto.randomUUID();
+    } catch (e) { }
+    return `local-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+}
 
+//Guardamos registro
 async function defaultGuardarRegistro(payload, { token, apiBase = '' } = {}) {
     if (!token) {
         const err = new Error('Usuario no autenticado');
-        err.code = 'no_autenticado';
+        err.code = 'No autenticado';
         throw err;
     }
-
     const safePayload = ensureIdsAreStrings(payload || {});
-
     const safeJson = async (res) => {
-        try {
-            return await res.json();
-        } catch {
-            return null;
-        }
+        try { return await res.json(); } catch { return null; }
     };
 
-    // POST si no hay id
     if (!safePayload.id && !safePayload._id) {
         const res = await fetch(`${apiBase}/api/registros`, {
             method: 'POST',
@@ -184,14 +180,13 @@ async function defaultGuardarRegistro(payload, { token, apiBase = '' } = {}) {
         });
         const json = await safeJson(res) || {};
         if (!res.ok) {
-            const err = new Error(json.message || 'error_guardando');
-            err.code = json.error || (res.status === 404 ? 'no_encontrado' : 'error_guardando');
+            const err = new Error(json.message || 'Error guardando');
+            err.code = json.error || (res.status === 404 ? 'No encontrado' : 'Error guardando');
             throw err;
         }
         return json.registro || json;
     }
 
-    // PUT si hay id
     const idToUse = safePayload.id || safePayload._id;
     let resPut;
     try {
@@ -201,7 +196,6 @@ async function defaultGuardarRegistro(payload, { token, apiBase = '' } = {}) {
             body: JSON.stringify(safePayload)
         });
     } catch (networkErr) {
-        // fallback a POST en error de red
         const createPayload = { ...safePayload };
         delete createPayload.id;
         delete createPayload._id;
@@ -212,20 +206,18 @@ async function defaultGuardarRegistro(payload, { token, apiBase = '' } = {}) {
         });
         const jsonPost = await safeJson(resPost) || {};
         if (!resPost.ok) {
-            const err = new Error(jsonPost.message || 'error_guardando');
-            err.code = jsonPost.error || 'error_guardando';
+            const err = new Error(jsonPost.message || 'Error guardando');
+            err.code = jsonPost.error || 'Error guardando';
             throw err;
         }
         return jsonPost.registro || jsonPost;
     }
 
-    // PUT ok
     if (resPut.ok) {
         const json = await safeJson(resPut) || {};
         return json.registro || json;
     }
 
-    // PUT 404 -> mapear y reintentar POST
     if (resPut.status === 404) {
         const createPayload = { ...safePayload };
         delete createPayload.id;
@@ -237,25 +229,24 @@ async function defaultGuardarRegistro(payload, { token, apiBase = '' } = {}) {
         });
         const jsonPost = await safeJson(resPost) || {};
         if (!resPost.ok) {
-            const err = new Error(jsonPost.message || 'error_guardando');
-            err.code = jsonPost.error || 'error_guardando';
+            const err = new Error(jsonPost.message || 'Error guardando');
+            err.code = jsonPost.error || 'Error guardando';
             throw err;
         }
         return jsonPost.registro || jsonPost;
     }
 
-    // Otros errores del PUT: parsear y propagar
     const jsonPut = await safeJson(resPut) || {};
     const err = new Error(jsonPut.message || 'error_actualizando');
     err.code = jsonPut.error || 'error_actualizando';
     throw err;
 }
 
-/* ----------------- sincronización por defecto (cliente) ----------------- */
+//Sincronización
 async function defaultSincronizar({ token, apiBase = '' } = {}) {
     if (!token) {
         const err = new Error('Usuario no autenticado');
-        err.code = 'no_autenticado';
+        err.code = 'No autenticado';
         throw err;
     }
     let pendientes = [];
@@ -291,52 +282,49 @@ async function defaultSincronizar({ token, apiBase = '' } = {}) {
     return json;
 }
 
-/* ----------------- utilidades de cache local y comprobaciones ----------------- */
+//Usar cache local por salvar fallos
 function clearLocalRecordCacheForDateOrId({ id, fecha }) {
     try {
-        // limpiar pendingRegistros por id o fecha
         const raw = localStorage.getItem('pendingRegistros');
         const pendientes = raw ? JSON.parse(raw) : [];
-        const nuevos = pendientes.filter(p => String(p.id || p._id) !== String(id) && formatDateYYYYMMDD(p.fecha) !== formatDateYYYYMMDD(fecha));
+        const nuevos = pendientes.filter(p => String(p.id || p._id) !== String(id) && formatDateDDMMYYYY(p.fecha) !== formatDateDDMMYYYY(fecha));
         localStorage.setItem('pendingRegistros', JSON.stringify(nuevos));
     } catch (e) {
         console.warn('clearLocalRecordCacheForDateOrId pending error', e);
     }
 
     try {
-        // eliminar claves relacionadas por patrón (ej. entradasCache_v1)
         Object.keys(localStorage).filter(k => /registro|registros|pending|entradas|entradasCache|analisis/i.test(k)).forEach(k => {
-            try { localStorage.removeItem(k); } catch (e) { /* ignore */ }
+            try { localStorage.removeItem(k); } catch (e) { }
         });
     } catch (e) {
         console.warn('clearLocalRecordCacheForDateOrId localStorage error', e);
     }
 
-    try { sessionStorage.clear(); } catch (e) { /* ignore */ }
+    try { sessionStorage.clear(); } catch (e) { }
 }
 
-// Comprueba si ya existe un registro para la fecha en: prop existingEntry, pendingRegistros o entradasCache_v1
 function hasExistingForDate(dateString, existingEntryProp) {
-    const keyDate = formatDateYYYYMMDD(dateString);
+    const keyDate = formatDateDDMMYYYY(dateString);
     if (!keyDate) return false;
     if (existingEntryProp) return true;
 
     try {
         const rawPend = localStorage.getItem('pendingRegistros');
         const pendientes = rawPend ? JSON.parse(rawPend) : [];
-        if (Array.isArray(pendientes) && pendientes.find(p => formatDateYYYYMMDD(p.fecha) === keyDate)) return true;
-    } catch (e) { /* ignore */ }
+        if (Array.isArray(pendientes) && pendientes.find(p => formatDateDDMMYYYY(p.fecha) === keyDate)) return true;
+    } catch (e) { }
 
     try {
         const rawCache = localStorage.getItem('entradasCache_v1');
         const cache = rawCache ? JSON.parse(rawCache) : [];
-        if (Array.isArray(cache) && cache.find(r => formatDateYYYYMMDD(r.fecha) === keyDate)) return true;
-    } catch (e) { /* ignore */ }
+        if (Array.isArray(cache) && cache.find(r => formatDateDDMMYYYY(r.fecha) === keyDate)) return true;
+    } catch (e) { }
 
     return false;
 }
 
-/* ----------------- componente RegistroEmocional ----------------- */
+
 export default function RegistroEmocional({
     open,
     onClose,
@@ -348,7 +336,11 @@ export default function RegistroEmocional({
     guardarRegistro: guardarRegistroProp,
     sincronizarConServidor: sincronizarProp,
     apiBase = '',
-    existingEntry = false
+    existingEntry = false,
+    // Opcional: función que encripta nota en cliente (preferida)
+    encryptNotaClient,
+    // Opcional: clave AES-256 en base64 (32 bytes raw -> base64). Si se pasa, se usa para AES-GCM local.
+    notaKeyBase64
 }) {
     const normalizeEmotion = (e) => {
         if (!e) return null;
@@ -367,9 +359,9 @@ export default function RegistroEmocional({
     const [emoji, setEmoji] = useState(initial.emoji || '');
     const [intensity, setIntensity] = useState(initial.intensity ?? 5);
     const [tagsText, setTagsText] = useState((initial.tags || initial.etiquetas || []).join(', '));
-    const [note, setNote] = useState(initial?.nota ?? initial?.note ?? initial?.noteText ?? "");
+    const [note, setNote] = useState(initial?.nota ?? initial?.note ?? initial?.noteText ?? '');
     useEffect(() => {
-        setNote(initial?.nota ?? initial?.note ?? initial?.noteText ?? "");
+        setNote(initial?.nota ?? initial?.note ?? initial?.noteText ?? '');
     }, [initial]);
     const [saving, setSaving] = useState(false);
     const [filter, setFilter] = useState('');
@@ -379,7 +371,6 @@ export default function RegistroEmocional({
     const [error, setError] = useState('');
     const prevOpenRef = useRef(false);
 
-    // Nuevo: trackear si ya cargamos el registro remoto para evitar refetch innecesario
     const [loadedRegistroId, setLoadedRegistroId] = useState(null);
     const [loadingRegistro, setLoadingRegistro] = useState(false);
 
@@ -457,20 +448,17 @@ export default function RegistroEmocional({
             if (!initial || !initial.id) return false;
             const initialFecha = initial.fecha || initial.date || null;
             if (!initialFecha) return false;
-            const todayKey = new Date().toLocaleDateString('sv-SE');
-            return formatDateYYYYMMDD(initialFecha) === todayKey;
+            const todayKey = formatDateDDMMYYYY(new Date());
+            return formatDateDDMMYYYY(initialFecha) === todayKey;
         } catch {
             return false;
         }
     }, [initial?.id, initial?.fecha]);
 
-    // Nuevo: cargar registro remoto (desencriptado por backend) cuando abrimos modal para editar
     useEffect(() => {
         if (!open) return;
         const idToLoad = initial && (initial.id || initial._id) ? (initial.id || initial._id) : null;
         if (!idToLoad) return;
-
-        // evitar recargar si ya cargamos este id
         if (loadedRegistroId === idToLoad) return;
 
         let cancelled = false;
@@ -485,8 +473,6 @@ export default function RegistroEmocional({
                     }
                 });
                 if (!resp.ok) {
-                    // no forzar error visual; solo log
-                    console.debug('GET registro failed', resp.status);
                     setLoadingRegistro(false);
                     return;
                 }
@@ -498,15 +484,11 @@ export default function RegistroEmocional({
                 if (cancelled) return;
 
                 const registro = body.registro;
-                // backend devuelve registro.nota (texto plano) para el propietario
-                // Rellenar campos solo si no hay interacción del usuario (evitar sobrescribir si ya escribió)
                 setLoadedRegistroId(idToLoad);
 
-                // Preferir valores del registro remoto si existen
                 if (registro.nota !== undefined && registro.nota !== null) {
                     setNote(registro.nota || '');
-                } else if (registro.notaEncrypted && !note) {
-                    // si backend devolviera ciphertext (no recomendado), no desencriptamos en cliente
+                } else {
                     setNote('');
                 }
 
@@ -599,13 +581,12 @@ export default function RegistroEmocional({
         setTagsText(joinTags(parts));
     };
 
-    // Comprueba si la fecha está dentro de los últimos N días (incluye hoy si N>=0)
     function isWithinLastNDays(dateString, n) {
         try {
-            const target = new Date(formatDateYYYYMMDD(dateString));
+            const f = formatDateDDMMYYYY(dateString);
+            const target = new Date(`${f.slice(4, 8)}-${f.slice(2, 4)}-${f.slice(0, 2)}`);
             if (isNaN(target)) return false;
             const today = new Date();
-            // normalizar horas
             target.setHours(0, 0, 0, 0);
             today.setHours(0, 0, 0, 0);
             const diffDays = Math.floor((today - target) / (1000 * 60 * 60 * 24));
@@ -615,6 +596,25 @@ export default function RegistroEmocional({
         }
     }
 
+    // Encriptar nota en cliente: usa encryptNotaClient o notaKeyBase64 (AES-GCM)
+    async function encryptNotaOrThrow(plain) {
+        if (!plain) return null;
+        if (typeof encryptNotaClient === 'function') {
+            const maybe = encryptNotaClient(String(plain));
+            return (maybe && typeof maybe.then === 'function') ? await maybe : maybe;
+        }
+        if (typeof notaKeyBase64 === 'string' && notaKeyBase64.trim()) {
+            // notaKeyBase64 debe ser base64 de 32 bytes (256 bits)
+            try {
+                return await encryptAesGcmBase64(String(plain), notaKeyBase64);
+            } catch (e) {
+                console.error('encryptAesGcmBase64 failed', e);
+                throw new Error('encrypt_failed');
+            }
+        }
+        throw new Error('encrypt_not_configured');
+    }
+
     async function submit() {
         setSaving(true);
         setError('');
@@ -622,7 +622,7 @@ export default function RegistroEmocional({
             const resolvedUserId = resolveUserId(usuario);
             if (!resolvedUserId) {
                 const err = new Error('Usuario no autenticado');
-                err.code = 'no_autenticado';
+                err.code = 'No autenticado';
                 throw err;
             }
             if (!token) {
@@ -631,10 +631,8 @@ export default function RegistroEmocional({
                 throw err;
             }
 
-            const fechaPayload = formatDateYYYYMMDD(date);
+            const fechaPayload = formatDateDDMMYYYY(date);
 
-            // Bloqueo: si no estamos editando y ya existe registro para esa fecha (comprobación extendida)
-            // además aplicamos la restricción para los últimos 6 días
             const within6Days = isWithinLastNDays(fechaPayload, 6);
             const alreadyExists = hasExistingForDate(fechaPayload, existingEntry);
             if (!(initial && initial.id) && alreadyExists && within6Days) {
@@ -643,26 +641,24 @@ export default function RegistroEmocional({
                 return;
             }
 
-            const notaHash = await sha256Hex(note || '');
             const intensidadNum = Number(intensity);
 
+            const emociones = selectedEmotions.map(e => ({
+                id: String(e.id),
+                label: String(e.label || ''),
+                emoji: e.emoji || '',
+                tipo: e.tipo || null,
+                color: e.color || '',
+                textColor: e.textColor || ''
+            })).filter(e => e.id && e.label);
+
             const carga = {
-                userId: resolvedUserId,
                 fecha: fechaPayload,
                 hora: new Date().toISOString(),
-                emociones: selectedEmotions.map(e => ({
-                    id: e.id,
-                    label: e.label,
-                    emoji: e.emoji,
-                    tipo: e.tipo || null,
-                    color: e.color,
-                    textColor: e.textColor
-                })),
+                emociones,
                 intensidad: intensidadNum,
                 etiquetas: tagsText ? tagsText.split(',').map(t => t.trim()).filter(Boolean) : [],
-                notaHash,
-                nota: note || '',
-                meta: { source: 'modal' }
+                version: initial && initial.version ? initial.version : 1
             };
 
             if (initial && (initial.id || initial._id)) {
@@ -670,28 +666,41 @@ export default function RegistroEmocional({
                 carga._id = initial._id || initial.id;
             }
 
+            // Encriptar nota en cliente y añadir notaEncrypted
+            let notaEncryptedToSend = null;
+            try {
+                notaEncryptedToSend = await encryptNotaOrThrow(note || '');
+            } catch (encErr) {
+                console.error('encryptNota failed:', encErr);
+                const err = new Error('No se pudo encriptar la nota. Intenta de nuevo más tarde.');
+                err.code = encErr.message === 'encrypt_not_configured' ? 'encrypt_not_configured' : 'encrypt_failed';
+                throw err;
+            }
+            carga.notaEncrypted = notaEncryptedToSend;
+
             const safeCarga = ensureIdsAreStrings(carga);
 
-            // Debug ligero
             try {
-                console.debug('RegistroEmocional submit payload (sanitized):', { fecha: safeCarga.fecha, id: safeCarga.id, notaLength: (safeCarga.nota || '').length });
-            } catch (e) { /* ignore */ }
+                console.debug('RegistroEmocional submit payload (sanitized):', { fecha: safeCarga.fecha, id: safeCarga.id, notaEncryptedPresent: !!safeCarga.notaEncrypted });
+            } catch (e) { }
 
-            // Llamada a guardarRegistro (Dashboard decide PUT/POST)
             let guardado;
             try {
                 guardado = await guardarRegistro(safeCarga, { token });
             } catch (errSave) {
-                // Mapear mensajes comunes del backend a códigos manejables por la UI
                 if (errSave && (errSave.message === 'not_found' || errSave.code === 'not_found' || errSave.status === 404)) {
                     const mapped = new Error('Registro no encontrado en servidor');
-                    mapped.code = 'no_encontrado';
+                    mapped.code = 'No encontrado';
+                    throw mapped;
+                }
+                if (errSave && errSave.code === 'limite_dia_alcanzado') {
+                    const mapped = new Error('Límite diario alcanzado');
+                    mapped.code = 'limite_dia_alcanzado';
                     throw mapped;
                 }
                 throw errSave;
             }
 
-            // Si estamos online, intentar sincronizar pendientes
             if (navigator.onLine) {
                 try {
                     await sincronizarConServidor({ token, userId: resolvedUserId });
@@ -699,12 +708,13 @@ export default function RegistroEmocional({
                     console.warn('sincronización inmediata fallida', err);
                 }
             } else {
-                // Guardar pendiente localmente
                 try {
                     const raw = localStorage.getItem('pendingRegistros');
                     const pendientes = raw ? JSON.parse(raw) : [];
-                    const safePending = ensureIdsAreStrings(safeCarga);
-                    pendientes.push(safePending);
+                    const pending = { ...safeCarga };
+                    pending.fecha = formatDateDDMMYYYY(pending.fecha);
+                    if (!pending.id) pending.id = generateClientId();
+                    pendientes.push(pending);
                     localStorage.setItem('pendingRegistros', JSON.stringify(pendientes));
                 } catch (e) {
                     console.warn('No se pudo guardar pendiente localmente', e);
@@ -719,22 +729,24 @@ export default function RegistroEmocional({
             onClose();
         } catch (err) {
             console.error('error guardando registro', err);
-            // Si el error indica que el recurso fue borrado en servidor, limpiar cache local para esa fecha/id
-            if (err && (err.code === 'no_encontrado' || String(err.message).toLowerCase().includes('no encontrado') || String(err.message).toLowerCase().includes('not found'))) {
+            if (err && (err.code === 'No encontrado' || String(err.message).toLowerCase().includes('no encontrado') || String(err.message).toLowerCase().includes('not found'))) {
                 try {
-                    clearLocalRecordCacheForDateOrId({ id: initial && (initial.id || initial._id), fecha: formatDateYYYYMMDD(date) });
-                } catch (e) { /* ignore */ }
+                    clearLocalRecordCacheForDateOrId({ id: initial && (initial.id || initial._id), fecha: formatDateDDMMYYYY(date) });
+                } catch (e) { }
             }
 
-            // Mapear errores conocidos a mensajes de usuario
             if (err && err.code === 'limite_dia_alcanzado') {
                 setError('Sólo se permite 1 registro por día.');
-            } else if (err && err.code === 'no_encontrado') {
+            } else if (err && err.code === 'No encontrado') {
                 setError('No se encontró el registro a editar. Intenta recargar la página.');
             } else if (err && err.code === 'error_actualizando') {
                 setError('No se pudo actualizar el registro. Intenta de nuevo más tarde.');
-            } else if (err && (err.code === 'no_autenticado' || err.code === 'no_token' || err.code === 'no_autorizado')) {
+            } else if (err && (err.code === 'No autenticado' || err.code === 'no_token' || err.code === 'no_autorizado')) {
                 setError('Usuario no autenticado. Inicia sesión e inténtalo de nuevo.');
+            } else if (err && err.code === 'encrypt_failed') {
+                setError('No se pudo encriptar la nota. Intenta de nuevo más tarde.');
+            } else if (err && err.code === 'encrypt_not_configured') {
+                setError('No hay método de encriptación configurado. Contacta con la app.');
             } else {
                 setError(err.message || 'No se pudo guardar el registro.');
             }
@@ -749,7 +761,11 @@ export default function RegistroEmocional({
         e.label.toLowerCase().includes(filter.trim().toLowerCase())
     );
 
-    const formattedDate = formatDateDDMMYYYY(date);
+    const formattedDate = (() => {
+        const f = formatDateDDMMYYYY(date);
+        if (f && f.length === 8) return `${f.slice(0, 2)}-${f.slice(2, 4)}-${f.slice(4, 8)}`;
+        return String(date || '');
+    })();
 
     return (
         <div className="modal-overlay" role="dialog" aria-modal="true" aria-label="Formulario de emoción">
@@ -858,12 +874,12 @@ export default function RegistroEmocional({
                         <textarea
                             value={note}
                             onChange={e => setNote(e.target.value)}
-                            maxLength={1000}
-                            placeholder="Escribe aquí... (máx 1000 caracteres)"
+                            maxLength={2000}
+                            placeholder="Escribe aquí... (máx 2000 caracteres)"
                             aria-label="Nota"
                         />
                         <div style={{ marginTop: 6, fontSize: 12, color: '#666' }}>
-                            La nota se enviará encriptada para proteger tu texto.
+                            La nota se encriptará en el cliente y se enviará como notaEncrypted (base64).
                         </div>
                     </label>
                 </div>
