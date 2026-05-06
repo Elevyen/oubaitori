@@ -45,7 +45,13 @@ export default function Dashboard() {
       return null;
     }
   }, []);
+  const [notaKey, setNotaKey] = useState(null);
 
+  useEffect(() => {
+    // Solo en cliente
+    const key = process.env.VITE_NOTA_MASTER_KEY || null;
+    setNotaKey(key);
+  }, []);
   useEffect(() => {
     if (!user && storedUser && typeof setUser === "function") {
       setUser(storedUser);
@@ -1439,6 +1445,7 @@ export default function Dashboard() {
         onSave={handleGuardarEntrada}
         usuarioActual={user || storedUser}
         token={token}
+        notaKeyBase64={notaKey}
         guardarRegistro={guardarRegistro}
         sincronizarConServidor={sincronizarConServidor}
         apiBase={API_BASE}
