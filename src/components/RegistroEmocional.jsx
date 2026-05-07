@@ -85,23 +85,17 @@ const EMOTIONS = [
     { id: 'hormigueo', label: 'Hormigueo', emoji: '🫢', tipo: 'neutra', color: '#FFE0B2', textColor: '#111111' }
 ];
 
-//Formato de fecha
-// Devuelve "DD-MM-YYYY"
+// Formato de fecha -> "DD-MM-YYYY"
 function formatDateDDMMYYYY(d) {
     if (!d) return '';
-    // Si ya viene como "DD-MM-YYYY"
     if (typeof d === 'string') {
         if (/^\d{2}-\d{2}-\d{4}$/.test(d)) return d;
-        // Si viene como "DDMMYYYY"
         if (/^\d{8}$/.test(d)) return `${d.slice(0, 2)}-${d.slice(2, 4)}-${d.slice(4, 8)}`;
-        // Si viene como "YYYY-MM-DD"
         if (/^\d{4}-\d{2}-\d{2}$/.test(d)) {
             const [yyyy, mm, dd] = d.split('-');
             return `${dd}-${mm}-${yyyy}`;
         }
     }
-
-    // Si es Date u otro input
     const dt = (d instanceof Date) ? d : new Date(d);
     if (dt instanceof Date && !isNaN(dt)) {
         const dd = String(dt.getDate()).padStart(2, '0');
@@ -109,21 +103,19 @@ function formatDateDDMMYYYY(d) {
         const yyyy = String(dt.getFullYear());
         return `${dd}-${mm}-${yyyy}`;
     }
-
-    // Fallback: intentar extraer con regex
     const m = String(d).match(/(\d{2})[^\d]?(\d{2})[^\d]?(\d{4})/);
     if (m) return `${m[1]}-${m[2]}-${m[3]}`;
     return String(d);
 }
 
-// Devuelve "DDMMYYYY" (clave interna, sin guiones) para comparaciones locales
+// Devuelve "DDMMYYYY" (clave interna)
 function formatDateKey(d) {
-  const s = formatDateDDMMYYYY(d);
-  if (!s) return '';
-  return String(s).replace(/-/g, '');
+    const s = formatDateDDMMYYYY(d);
+    if (!s) return '';
+    return String(s).replace(/-/g, '');
 }
 
-//Encriptado
+// Encriptado helpers
 function base64ToArrayBuffer(base64) {
     const binary = atob(base64);
     const len = binary.length;
@@ -163,7 +155,7 @@ async function encryptAesGcmBase64BackendFormat(plainText, base64Key) {
     return arrayBufferToBase64(combined.buffer);
 }
 
-//Asegura que ID es string
+// Asegura que ID es string (no elimina campos)
 function ensureIdsAreStrings(obj) {
     if (!obj || typeof obj !== 'object') return obj;
     const copy = { ...obj };
@@ -175,6 +167,7 @@ function ensureIdsAreStrings(obj) {
         }
     }
     if (copy.id !== undefined) copy.id = String(copy.id || '');
+    if (copy.userId !== undefined) copy.userId = String(copy.userId || '');
     return copy;
 }
 function generateClientId() {
@@ -184,42 +177,75 @@ function generateClientId() {
     return `local-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
 }
 
-//guardarRegistro
+// defaultGuardarRegistro (mejorada: sanitiza, logs y detección explícita de id)
 async function defaultGuardarRegistro(payload, { token, apiBase = '' } = {}) {
     if (!token) {
         const err = new Error('Usuario no autenticado');
         err.code = 'Usuario no autenticado';
         throw err;
     }
+
+    // Normalizar ids a strings
     const safePayload = ensureIdsAreStrings(payload || {});
+
+    // Eliminar id/_id/userId vacíos (evita falsy confusos)
+    if (safePayload.id !== undefined) {
+        safePayload.id = String(safePayload.id || '').trim();
+        if (safePayload.id === '') delete safePayload.id;
+    }
+    if (safePayload._id !== undefined) {
+        safePayload._id = String(safePayload._id || '').trim();
+        if (safePayload._id === '') delete safePayload._id;
+    }
+    if (safePayload.userId !== undefined) {
+        safePayload.userId = String(safePayload.userId || '').trim();
+        if (safePayload.userId === '') delete safePayload.userId;
+    }
+
     const safeJson = async (res) => {
         try { return await res.json(); } catch { return null; }
     };
 
-    if (!safePayload.id && !safePayload._id) {
+    const handleErrorResponse = async (res) => {
+        const text = await res.text().catch(() => null);
+        console.error('Server response text:', text);
+        let json = null;
+        try { json = text ? JSON.parse(text) : null; } catch { json = null; }
+        const err = new Error((json && json.message) || text || 'Error guardando');
+        err.code = (json && json.error) || (res.status === 404 ? 'No encontrado' : 'Error guardando');
+        throw err;
+    };
+
+    const hasId = typeof safePayload.id !== 'undefined' && safePayload.id !== null;
+    const hasUnderscoreId = typeof safePayload._id !== 'undefined' && safePayload._id !== null;
+
+    // Crear (POST) si no hay id definido explícitamente
+    if (!hasId && !hasUnderscoreId) {
+        console.debug('defaultGuardarRegistro POST payload:', safePayload);
         const res = await fetch(`${apiBase}/api/registros`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
             body: JSON.stringify(safePayload)
         });
-        const json = await safeJson(res) || {};
         if (!res.ok) {
-            const err = new Error(json.message || 'Error guardando');
-            err.code = json.error || (res.status === 404 ? 'No encontrado' : 'Error guardando');
-            throw err;
+            await handleErrorResponse(res);
         }
+        const json = await safeJson(res) || {};
         return json.registro || json;
     }
 
+    // Actualizar (PUT) si hay id
     const idToUse = safePayload.id || safePayload._id;
     let resPut;
     try {
+        console.debug('defaultGuardarRegistro PUT payload:', safePayload, 'idToUse:', idToUse);
         resPut = await fetch(`${apiBase}/api/registros/${encodeURIComponent(idToUse)}`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
             body: JSON.stringify(safePayload)
         });
     } catch (networkErr) {
+        console.warn('PUT network error, intentando POST de fallback', networkErr);
         const createPayload = { ...safePayload };
         delete createPayload.id;
         delete createPayload._id;
@@ -228,12 +254,10 @@ async function defaultGuardarRegistro(payload, { token, apiBase = '' } = {}) {
             headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
             body: JSON.stringify(createPayload)
         });
-        const jsonPost = await safeJson(resPost) || {};
         if (!resPost.ok) {
-            const err = new Error(jsonPost.message || 'Error guardando');
-            err.code = jsonPost.error || 'Error guardando';
-            throw err;
+            await handleErrorResponse(resPost);
         }
+        const jsonPost = await safeJson(resPost) || {};
         return jsonPost.registro || jsonPost;
     }
 
@@ -246,27 +270,23 @@ async function defaultGuardarRegistro(payload, { token, apiBase = '' } = {}) {
         const createPayload = { ...safePayload };
         delete createPayload.id;
         delete createPayload._id;
+        console.debug('PUT devolvió 404, creando con payload:', createPayload);
         const resPost = await fetch(`${apiBase}/api/registros`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
             body: JSON.stringify(createPayload)
         });
-        const jsonPost = await safeJson(resPost) || {};
         if (!resPost.ok) {
-            const err = new Error(jsonPost.message || 'Error guardando');
-            err.code = jsonPost.error || 'Error guardando';
-            throw err;
+            await handleErrorResponse(resPost);
         }
+        const jsonPost = await safeJson(resPost) || {};
         return jsonPost.registro || jsonPost;
     }
 
-    const jsonPut = await safeJson(resPut) || {};
-    const err = new Error(jsonPut.message || 'error_actualizando');
-    err.code = jsonPut.error || 'error_actualizando';
-    throw err;
+    await handleErrorResponse(resPut);
 }
 
-//Sincroniza 
+// Sincronizar pendientes
 async function defaultSincronizar({ token, apiBase = '' } = {}) {
     if (!token) {
         const err = new Error('Usuario no autenticado');
@@ -306,7 +326,7 @@ async function defaultSincronizar({ token, apiBase = '' } = {}) {
     return json;
 }
 
-//Uso de cache
+// Cache helpers
 function clearLocalRecordCacheForDateOrId({ id, fecha }) {
     try {
         const raw = localStorage.getItem('pendingRegistros');
@@ -617,7 +637,7 @@ export default function RegistroEmocional({
         }
     }
 
-    // Encriptar nota en cliente usando notaKeyBase64 (única opción)
+    // Encriptar nota en cliente usando notaKeyBase64
     async function encryptNotaOrThrow(plain) {
         if (!plain) return null;
         if (typeof notaKeyBase64 !== 'string' || !notaKeyBase64.trim()) {
@@ -669,6 +689,7 @@ export default function RegistroEmocional({
                 textColor: e.textColor || ''
             })).filter(e => e.id && e.label);
 
+            // Construcción de carga base
             const carga = {
                 fecha: fechaPayload,
                 hora: new Date().toISOString(),
@@ -678,9 +699,16 @@ export default function RegistroEmocional({
                 version: initial && initial.version ? initial.version : 1
             };
 
+            // Añadir userId explícito (normalizado)
+            carga.userId = String(resolvedUserId);
+
+            // Si venimos de edición, forzar registroId desde initial
             if (initial && (initial.id || initial._id)) {
-                carga.id = initial.id || initial._id;
-                carga._id = initial._id || initial.id;
+                const registroId = String(initial.id || initial._id || '').trim();
+                if (registroId) {
+                    carga.id = registroId;
+                    carga._id = registroId;
+                }
             }
 
             // Encriptar nota en cliente y añadir notaEncrypted
@@ -695,10 +723,32 @@ export default function RegistroEmocional({
             }
             carga.notaEncrypted = notaEncryptedToSend;
 
+            // Normalizar y sanitizar IDs antes de enviar
             const safeCarga = ensureIdsAreStrings(carga);
 
+            // Eliminar id/_id/userId vacíos (evita enviar cadenas vacías)
+            if (safeCarga.id !== undefined) {
+                safeCarga.id = String(safeCarga.id || '').trim();
+                if (safeCarga.id === '') delete safeCarga.id;
+            }
+            if (safeCarga._id !== undefined) {
+                safeCarga._id = String(safeCarga._id || '').trim();
+                if (safeCarga._id === '') delete safeCarga._id;
+            }
+            if (safeCarga.userId !== undefined) {
+                safeCarga.userId = String(safeCarga.userId || '').trim();
+                if (safeCarga.userId === '') delete safeCarga.userId;
+            }
+
+            // Logs para depuración (muestra lo esencial, evita exponer nota en claro)
             try {
-                console.debug('RegistroEmocional submit payload (sanitized):', { fecha: safeCarga.fecha, id: safeCarga.id, notaEncryptedPresent: !!safeCarga.notaEncrypted });
+                console.debug('RegistroEmocional submit payload (final):', {
+                    fecha: safeCarga.fecha,
+                    id: safeCarga.id,
+                    userIdPresent: !!safeCarga.userId,
+                    notaEncryptedPresent: !!safeCarga.notaEncrypted,
+                    emocionesCount: Array.isArray(safeCarga.emociones) ? safeCarga.emociones.length : 0
+                });
             } catch (e) { }
 
             let guardado;
@@ -898,7 +948,7 @@ export default function RegistroEmocional({
                             aria-label="Nota"
                         />
                         <div style={{ marginTop: 6, fontSize: 12, color: '#666' }}>
-                            La nota se encriptará,tus datos están seguros.
+                            La nota se encriptará, tus datos están seguros.
                         </div>
                     </label>
                 </div>
