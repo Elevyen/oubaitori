@@ -710,6 +710,8 @@ export default function RegistroEmocional({
                     carga._id = registroId;
                 }
             }
+            // DEBUG TEMPORAL: inspeccionar estado antes de encriptar
+            console.debug('DEBUG submit - note state:', { noteValue: note, noteType: typeof note, noteLen: (note || '').length });
 
             // Encriptar nota en cliente y añadir notaEncrypted
             let notaEncryptedToSend = null;
@@ -756,6 +758,17 @@ export default function RegistroEmocional({
                     emocionesCount: Array.isArray(safeCarga.emociones) ? safeCarga.emociones.length : 0
                 });
             } catch (e) { }
+            // DEBUG TEMPORAL: inspeccionar payload final que se va a enviar
+            console.debug('DEBUG submit - payload final (pre-send):', {
+                fecha: safeCarga.fecha,
+                id: safeCarga.id,
+                userId: safeCarga.userId,
+                notaPresent: Object.prototype.hasOwnProperty.call(safeCarga, 'nota'),
+                notaValue: safeCarga.nota === undefined ? undefined : (safeCarga.nota === null ? null : '[REDACTED]'),
+                notaEncryptedPresent: Object.prototype.hasOwnProperty.call(safeCarga, 'notaEncrypted'),
+                notaEncryptedIsNull: safeCarga.notaEncrypted === null,
+                emocionesCount: Array.isArray(safeCarga.emociones) ? safeCarga.emociones.length : 0
+            });
 
             let guardado;
             try {
