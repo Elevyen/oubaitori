@@ -478,7 +478,7 @@ export default function Dashboard() {
     if (typeof d === "string" && /^\d{4}-\d{2}-\d{2}$/.test(d)) return d;
     const dt = new Date(d);
     if (isNaN(dt)) return String(d);
-    return dt.toLocaleDateString('sv-SE');
+    return dt.toLocaleDateString('sv-SE', { timeZone: 'Europe/Madrid' });
   };
 
   //normaliza fechas a YYYY-MM-DD y compara
@@ -586,7 +586,7 @@ export default function Dashboard() {
   };
 
   const handleDayClick = async (dateString) => {
-    const todayKey = new Date().toLocaleDateString('sv-SE');
+    const todayKey = new Date().toLocaleDateString('sv-SE', { timeZone: 'Europe/Madrid' });
     if (dateString > todayKey) {
       setMensajeGuia("No puedes registrar en una fecha futura.");
       return;
@@ -841,7 +841,7 @@ export default function Dashboard() {
     for (let i = 0; i < n; i++) {
       const d = new Date(today);
       d.setDate(today.getDate() - i);
-      out.push(d.toLocaleDateString('sv-SE'));
+      out.push(d.toLocaleDateString('sv-SE', { timeZone: 'Europe/Madrid' }));
     }
     return out;
   }
@@ -1164,10 +1164,10 @@ export default function Dashboard() {
       let savedRegistro = null;
 
       const payloadCopy = { ...(savedOrPayload || {}) };
-      const fecha = payloadCopy.fecha || new Date().toLocaleDateString('sv-SE');
+      const fecha = payloadCopy.fecha || new Date().toLocaleDateString('sv-SE', { timeZone: 'Europe/Madrid' });
       if (!isServerSaved && fecha) {
         const existingForDate = findEntryForDate(fecha);
-        if (existingForDate && (existingForDate.id || existingForDate._id) && fecha === new Date().toLocaleDateString('sv-SE')) {
+        if (existingForDate && (existingForDate.id || existingForDate._id) && fecha === new Date().toLocaleDateString('sv-SE', { timeZone: 'Europe/Madrid' })) {
           payloadCopy.id = existingForDate.id || existingForDate._id;
         }
       }
@@ -1227,7 +1227,7 @@ export default function Dashboard() {
 
   async function checkIfAnalysisComplete() {
     if (!token) return false;
-    const todayKey = new Date().toLocaleDateString('sv-SE');
+    const todayKey = new Date().toLocaleDateString('sv-SE', { timeZone: 'Europe/Madrid' });
     const exists = await checkAnalisisExists(todayKey);
     setAnalysisComplete(exists);
     return exists;
@@ -1411,7 +1411,7 @@ export default function Dashboard() {
                     <p>{analysisComplete ? "El análisis para este periodo ya se ha realizado." : mensajeGuia}</p>
                   </div>
                   <div style={{ display: "flex", gap: "10px" }}>
-                    <button className="rpg-button" onClick={() => handleDayClick(new Date().toLocaleDateString('sv-SE'))}>
+                    <button className="rpg-button" onClick={() => handleDayClick(new Date().toLocaleDateString('sv-SE', { timeZone: 'Europe/Madrid' }))}>
                       Registrar hoy
                     </button>
                     <button
