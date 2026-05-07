@@ -713,15 +713,21 @@ export default function RegistroEmocional({
 
             // Encriptar nota en cliente y añadir notaEncrypted
             let notaEncryptedToSend = null;
-            try {
-                notaEncryptedToSend = await encryptNotaOrThrow(note || '');
-            } catch (encErr) {
-                console.error('encryptNota failed:', encErr);
-                const err = new Error(encErr.message === 'encrypt_not_configured' ? 'No hay método de encriptación configurado.' : 'No se pudo encriptar la nota. Intenta de nuevo más tarde.');
-                err.code = encErr.message === 'encrypt_not_configured' ? 'encrypt_not_configured' : (encErr.message === 'encrypt_invalid_key' ? 'encrypt_invalid_key' : 'encrypt_failed');
-                throw err;
+            if ((note || '').trim().length > 0) {
+                try {
+                    notaEncryptedToSend = await encryptNotaOrThrow(note);
+                } catch (encErr) {
+                    console.error('encryptNota failed:', encErr);
+                    const err = new Error(encErr.message === 'encrypt_not_configured' ? 'No hay método de encriptación configurado.' : 'No se pudo encriptar la nota. Intenta de nuevo más tarde.');
+                    err.code = encErr.message === 'encrypt_not_configured' ? 'encrypt_not_configured' : (encErr.message === 'encrypt_invalid_key' ? 'encrypt_invalid_key' : 'encrypt_failed');
+                    throw err;
+                }
+                carga.notaEncrypted = notaEncryptedToSend;
+            } else {
+                if (initial && (initial.id || initial._id)) {
+                    carga.notaEncrypted = null;
+                }
             }
-            carga.notaEncrypted = notaEncryptedToSend;
 
             // Normalizar y sanitizar IDs antes de enviar
             const safeCarga = ensureIdsAreStrings(carga);
@@ -755,17 +761,28 @@ export default function RegistroEmocional({
             try {
                 guardado = await guardarRegistro(safeCarga, { token });
             } catch (errSave) {
-                if (errSave && (errSave.message === 'not_found' || errSave.code === 'not_found' || errSave.status === 404)) {
-                    const mapped = new Error('Registro no encontrado en servidor');
-                    mapped.code = 'No encontrado';
-                    throw mapped;
+                // Si backend devuelve 409 con detalle y isToday true, reintentar PUT
+                if (errSave && errSave.code === 'Límite día' || errSave && errSave.message && errSave.message.toLowerCase().includes('ya existe')) {
+                    // fallback: llamar a la API para obtener registro por fecha y usar su id
+                    try {
+                        const fechaPayload = formatDateDDMMYYYY(date);
+                        const resp = await fetch(`${apiBase}/api/registros/fecha/${fechaPayload}`, {
+                            headers: { Authorization: `Bearer ${token}` }
+                        });
+                        if (resp.ok) {
+                            const body = await resp.json();
+                            const existingId = body?.registro?.id;
+                            if (existingId) {
+                                safeCarga.id = existingId;
+                                safeCarga._id = existingId;
+                                guardado = await guardarRegistro(safeCarga, { token });
+                            }
+                        }
+                    } catch (e) {
+                        // seguir con el error original
+                    }
                 }
-                if (errSave && errSave.code === 'limite_dia_alcanzado') {
-                    const mapped = new Error('Límite diario alcanzado');
-                    mapped.code = 'limite_dia_alcanzado';
-                    throw mapped;
-                }
-                throw errSave;
+                if (!guardado) throw errSave;
             }
 
             if (navigator.onLine) {
@@ -778,9 +795,12 @@ export default function RegistroEmocional({
                 try {
                     const raw = localStorage.getItem('pendingRegistros');
                     const pendientes = raw ? JSON.parse(raw) : [];
+
                     const pending = { ...safeCarga };
                     pending.fecha = formatDateDDMMYYYY(pending.fecha);
                     if (!pending.id) pending.id = generateClientId();
+                    // Si notaEncrypted es undefined, no incluirla para evitar sobrescribir en servidor
+                    if (typeof pending.notaEncrypted === 'undefined') delete pending.notaEncrypted;
                     pendientes.push(pending);
                     localStorage.setItem('pendingRegistros', JSON.stringify(pendientes));
                 } catch (e) {
