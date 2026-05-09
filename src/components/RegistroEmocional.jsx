@@ -781,7 +781,6 @@ export default function RegistroEmocional({
             if ((note || '').trim().length > 0) {
                 try {
                     notaEncryptedToSend = await encryptNotaOrThrow(note);
-                    console.log('notaEncryptedToSend:', notaEncryptedToSend);
                 } catch (encErr) {
                     console.error('encryptNota failed:', encErr);
                     const err = new Error(encErr.message === 'encrypt_not_configured' ? 'No hay método de encriptación configurado.' : 'No se pudo encriptar la nota. Intenta de nuevo más tarde.');
