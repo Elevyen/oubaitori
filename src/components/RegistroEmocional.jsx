@@ -399,9 +399,9 @@ export default function RegistroEmocional({
     const [emoji, setEmoji] = useState(initial.emoji || '');
     const [intensity, setIntensity] = useState(initial.intensity ?? 5);
     const [tagsText, setTagsText] = useState((initial.tags || initial.etiquetas || []).join(', '));
-    const [note, setNote] = useState(initial?.nota ?? initial?.note ?? initial?.noteText ?? '');
+    const [nota, setNota] = useState(initial?.nota || '');
     useEffect(() => {
-        setNote(initial?.nota ?? initial?.note ?? initial?.noteText ?? '');
+        setNota(initial?.nota);
     }, [initial]);
     const [saving, setSaving] = useState(false);
     const [filter, setFilter] = useState('');
@@ -456,14 +456,14 @@ export default function RegistroEmocional({
             setEmoji(initial.emoji || '');
             setIntensity(initial.intensity ?? 5);
             setTagsText((initial.tags || initial.etiquetas || []).join(', '));
-            setNote(initial.note || '');
+            setNota(initial.nota || '');
             const normalized = (initial.selectedEmotions || initial.emociones || []).map(normalizeEmotion).filter(Boolean);
             setSelectedEmotions(normalized);
         } else {
             setEmoji('');
             setIntensity(5);
             setTagsText('');
-            setNote('');
+            setNota('');
             setSelectedEmotions([]);
         }
         setError('');
@@ -538,9 +538,9 @@ export default function RegistroEmocional({
                 setLoadedRegistroId(idToLoad);
 
                 if (registro.nota !== undefined && registro.nota !== null) {
-                    setNote(registro.nota || '');
+                    setNota(registro.nota || '');
                 } else {
-                    setNote('');
+                    setNota('');
                 }
 
                 if (registro.etiquetas && Array.isArray(registro.etiquetas)) {
@@ -575,7 +575,17 @@ export default function RegistroEmocional({
         apiBase,
         token
     ]);
-    useEffect(() => { if (!open) return; setLoadedRegistroId(null); setError(''); }, [date]);
+    useEffect(() => {
+        if (!open) return;
+
+        setLoadedRegistroId(null);
+        setError('');
+
+        if (!initial || Object.keys(initial).length === 0) {
+            resetForm(false);
+        }
+    }, [date, open]);
+
     async function loadRegistroByDate(fechaDD) {
         if (!fechaDD) return null;
         setLoadingRegistro(true);
@@ -599,7 +609,7 @@ export default function RegistroEmocional({
             const registro = body.registro;
             // asigna estado con todo el registro (nota ya desencriptada por backend si eres owner)
             setLoadedRegistroId(registro.id || registro._id || null);
-            setNote(registro.nota || '');
+            setNota(registro.nota || '');
             if (registro.etiquetas && Array.isArray(registro.etiquetas)) {
                 const normalized = registro.etiquetas
                     .map(tag => EMOTIONS.find(e => e.id === tag))
@@ -628,7 +638,7 @@ export default function RegistroEmocional({
                 setEmoji(initial.emoji || '');
                 setIntensity(initial.intensity ?? 5);
                 setTagsText((initial.tags || initial.etiquetas || []).join(', '));
-                setNote(initial.note || '');
+                setNota(initial.nota || '');
                 const normalized = (initial.selectedEmotions || initial.emociones || []).map(normalizeEmotion).filter(Boolean);
                 setSelectedEmotions(normalized);
                 setError('');
@@ -794,14 +804,12 @@ export default function RegistroEmocional({
                     carga._id = registroId;
                 }
             }
-            // DEBUG TEMPORAL: inspeccionar estado antes de encriptar
-            console.debug('DEBUG submit - note state:', { noteValue: note, noteType: typeof note, noteLen: (note || '').length });
 
             // Encriptar nota en cliente y añadir notaEncrypted
             let notaEncryptedToSend = null;
-            if ((note || '').trim().length > 0) {
+            if ((nota || '').trim().length > 0) {
                 try {
-                    notaEncryptedToSend = await encryptNotaOrThrow(note);
+                    notaEncryptedToSend = await encryptNotaOrThrow(nota);
                 } catch (encErr) {
                     console.error('encryptNota failed:', encErr);
                     const err = new Error(encErr.message === 'encrypt_not_configured' ? 'No hay método de encriptación configurado.' : 'No se pudo encriptar la nota. Intenta de nuevo más tarde.');
@@ -847,11 +855,11 @@ export default function RegistroEmocional({
                 fecha: safeCarga.fecha,
                 id: safeCarga.id,
                 userId: safeCarga.userId,
-                notaPresent: Object.prototype.hasOwnProperty.call(safeCarga, 'nota'),
-                notaValue: safeCarga.nota === undefined ? undefined : (safeCarga.nota === null ? null : '[REDACTED]'),
                 notaEncryptedPresent: Object.prototype.hasOwnProperty.call(safeCarga, 'notaEncrypted'),
                 notaEncryptedIsNull: safeCarga.notaEncrypted === null,
-                emocionesCount: Array.isArray(safeCarga.emociones) ? safeCarga.emociones.length : 0
+                emocionesCount: Array.isArray(safeCarga.emociones)
+                    ? safeCarga.emociones.length
+                    : 0
             });
 
             let guardado;
@@ -1058,8 +1066,8 @@ export default function RegistroEmocional({
                     <label className="field">
                         <div className="field-label">Nota</div>
                         <textarea
-                            value={note}
-                            onChange={e => setNote(e.target.value)}
+                            value={nota}
+                            onChange={e => setNota(e.target.value)}
                             maxLength={2000}
                             placeholder="Escribe aquí... (máx 2000 caracteres)"
                             aria-label="Nota"

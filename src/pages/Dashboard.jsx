@@ -190,8 +190,7 @@ export default function Dashboard() {
 
     const fecha = safe.fecha || safe.date || (safe.createdAt && safe.createdAt.slice(0, 10)) || null;
     const hora = safe.hora || safe.time || safe.createdAt || null;
-    const nota = safe.nota || safe.note || safe.noteText || safe.text || null;
-    const notaHash = safe.notaHash || safe.noteHash || null;
+    const nota = safe.nota || null;
 
     const emociones = safe.emociones || safe.emotions || safe.emotionList || [];
     const intensidad = safe.intensidad ?? safe.intensity ?? safe.int ?? null;
@@ -942,7 +941,7 @@ export default function Dashboard() {
       const fecha = fechaRaw ? String(fechaRaw).slice(0, 10) : null;
       const emociones = Array.isArray(r.emociones) ? r.emociones : (Array.isArray(r.emotions) ? r.emotions : []);
       const intensidad = r.intensidad ?? r.intensity ?? (typeof r.int === "number" ? r.int : null);
-      const nota = r.nota || r.note || null;
+      const nota = r.nota || null;
       const id = r.id || r._id || null;
       const usuarioId = r.usuarioId || r.userId || r.usuario?._id || r.user?._id || null;
 
