@@ -1,4 +1,9 @@
-const API_BASE = import.meta.env.VITE_API_BASE || '';
+const API_BASE =
+    (typeof import.meta !== "undefined" &&
+        import.meta.env &&
+        (import.meta.env.VITE_LOCAL_BACKEND ||
+            import.meta.env.VITE_RENDER_BACKEND)) ||
+    "";
 
 export async function fetchPartners(token) {
     const res = await fetch(`${API_BASE}/api/partners`, {

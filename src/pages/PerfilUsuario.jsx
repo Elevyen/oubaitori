@@ -4,7 +4,7 @@ import { useNavigate } from "react-router-dom";
 import Card from "../components/ui/Card.jsx";
 import '../styles/usuario.css';
 
-const API_BASE = (typeof import.meta !== "undefined" && import.meta.env && (import.meta.env.VITE_LOCAL_BACKEND || import.meta.env.VITE_RENDER_BACKEND || import.meta.env.VITE_API_BASE)) || "";
+const API_BASE = (typeof import.meta !== "undefined" && import.meta.env && (import.meta.env.VITE_LOCAL_BACKEND || import.meta.env.VITE_RENDER_BACKEND )) || "";
 function getToken() { try { return localStorage.getItem("tokenLogin") || ""; } catch { return ""; } }
 
 /* Opciones locales fijas */
