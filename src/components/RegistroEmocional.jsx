@@ -383,14 +383,23 @@ export default function RegistroEmocional({
     notaKeyBase64
 }) {
     const normalizeEmotion = (e) => {
-        if (!e) return null;
+        if (
+            !e ||
+            typeof e.id !== 'string' ||
+            !e.id.trim()
+        ) {
+            return null;
+        }
+
         const ref = EMOTIONS.find(x => x.id === e.id);
+
         if (ref) return { ...ref };
+
         return {
-            id: e.id,
-            label: e.label || '',
+            id: e.id.trim(),
+            label: typeof e.label === 'string' ? e.label.trim() : '',
             emoji: e.emoji || '',
-            tipo: e.tipo || null,
+            tipo: e.tipo || 'neutra',
             color: e.color || '',
             textColor: e.textColor || ''
         };
@@ -543,8 +552,8 @@ export default function RegistroEmocional({
                     setNota('');
                 }
 
-                if (registro.etiquetas && Array.isArray(registro.etiquetas)) {
-                    const normalized = registro.etiquetas
+                if (registro.emociones && Array.isArray(registro.emociones)) {
+                    const normalized = registro.emociones
                         .map(tag => EMOTIONS.find(e => e.id === tag))
                         .filter(Boolean);
 
@@ -555,8 +564,8 @@ export default function RegistroEmocional({
                     setIntensity(registro.intensidad);
                 }
 
-                if (registro.etiquetas && Array.isArray(registro.etiquetas)) {
-                    setTagsText((registro.etiquetas || []).join(', '));
+                if (registro.emociones && Array.isArray(registro.emociones)) {
+                    setTagsText((registro.emociones || []).join(', '));
                 }
             } catch (err) {
                 console.error('Error cargando registro remoto:', err);
@@ -610,8 +619,8 @@ export default function RegistroEmocional({
             // asigna estado con todo el registro (nota ya desencriptada por backend si eres owner)
             setLoadedRegistroId(registro.id || registro._id || null);
             setNota(registro.nota || '');
-            if (registro.etiquetas && Array.isArray(registro.etiquetas)) {
-                const normalized = registro.etiquetas
+            if (registro.emociones && Array.isArray(registro.emociones)) {
+                const normalized = registro.emociones
                     .map(tag => EMOTIONS.find(e => e.id === tag))
                     .filter(Boolean);
 
@@ -620,8 +629,8 @@ export default function RegistroEmocional({
             if (typeof registro.intensidad !== 'undefined' && registro.intensidad !== null) {
                 setIntensity(registro.intensidad);
             }
-            if (registro.etiquetas && Array.isArray(registro.etiquetas)) {
-                setTagsText((registro.etiquetas || []).join(', '));
+            if (registro.emociones && Array.isArray(registro.emociones)) {
+                setTagsText((registro.emociones || []).join(', '));
             }
             return registro;
         } catch (err) {
@@ -771,14 +780,22 @@ export default function RegistroEmocional({
 
             const intensidadNum = Number(intensity);
 
-            const emociones = selectedEmotions.map(e => ({
-                id: String(e.id),
-                label: String(e.label || ''),
-                emoji: e.emoji || '',
-                tipo: e.tipo || null,
-                color: e.color || '',
-                textColor: e.textColor || ''
-            })).filter(e => e.id && e.label);
+            const emociones = selectedEmotions
+                .filter(e =>
+                    e &&
+                    typeof e.id === 'string' &&
+                    e.id.trim() &&
+                    typeof e.label === 'string' &&
+                    e.label.trim()
+                )
+                .map(e => ({
+                    id: e.id.trim(),
+                    label: e.label.trim(),
+                    emoji: e.emoji || '',
+                    tipo: e.tipo || 'neutra',
+                    color: e.color || '',
+                    textColor: e.textColor || ''
+                }));
 
             // Construcción de carga base
             const carga = {
