@@ -555,6 +555,49 @@ export default function RegistroEmocional({
         return () => { cancelled = true; };
     }, [open, initial && (initial.id || initial._id), apiBase, token]);
 
+    async function loadRegistroByDate(fechaDD) {
+        if (!fechaDD) return null;
+        setLoadingRegistro(true);
+        try {
+            const resp = await fetch(`${apiBase}/api/registros/fecha/${encodeURIComponent(fechaDD)}`, {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                    Authorization: `Bearer ${token}`
+                }
+            });
+            if (!resp.ok) {
+                setLoadingRegistro(false);
+                return null;
+            }
+            const body = await resp.json().catch(() => null);
+            if (!body || !body.ok || !body.registro) {
+                setLoadingRegistro(false);
+                return null;
+            }
+            const registro = body.registro;
+            // asigna estado con todo el registro (nota ya desencriptada por backend si eres owner)
+            setLoadedRegistroId(registro.id || registro._id || null);
+            setNote(registro.nota || '');
+            if (registro.emociones && Array.isArray(registro.emociones)) {
+                const normalized = registro.emociones.map(normalizeEmotion).filter(Boolean);
+                setSelectedEmotions(normalized);
+            }
+            if (typeof registro.intensidad !== 'undefined' && registro.intensidad !== null) {
+                setIntensity(registro.intensidad);
+            }
+            if (registro.etiquetas && Array.isArray(registro.etiquetas)) {
+                setTagsText((registro.etiquetas || []).join(', '));
+            }
+            return registro;
+        } catch (err) {
+            console.error('Error cargando registro por fecha:', err);
+            return null;
+        } finally {
+            setLoadingRegistro(false);
+        }
+    }
+
     useEffect(() => {
         if (open && !prevOpenRef.current) {
             if (initial && Object.keys(initial).length > 0) {
@@ -566,7 +609,18 @@ export default function RegistroEmocional({
                 setSelectedEmotions(normalized);
                 setError('');
             } else {
-                resetForm(false);
+                // Si no hay initial pero puede existir registro para la fecha, intenta cargarlo
+                (async () => {
+                    const fechaKey = formatDateDDMMYYYY(date);
+                    const existing = hasExistingForDate(fechaKey, existingEntry);
+                    if (existing) {
+                        // intentr recuperar registro por fecha y rellenar modal
+                        const reg = await loadRegistroByDate(fechaKey);
+                        if (!reg) resetForm(false);
+                    } else {
+                        resetForm(false);
+                    }
+                })();
             }
         }
 
