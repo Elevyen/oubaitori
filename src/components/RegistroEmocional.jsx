@@ -470,18 +470,21 @@ export default function RegistroEmocional({
     };
 
     useEffect(() => {
-        const tags = parseTags(tagsText).map(t => t.toLowerCase());
-        setSelectedEmotions(prev => {
-            const fromTags = EMOTIONS.filter(e => tags.includes(e.id.toLowerCase()));
-            if (fromTags.length > 0) {
-                if (!fromTags.find(e => e.emoji === emoji)) setEmoji('');
-                return fromTags;
-            }
-            const filtered = prev.filter(e => tags.includes(e.id.toLowerCase())).map(e => normalizeEmotion(e));
-            if (!filtered.find(e => e.emoji === emoji)) setEmoji('');
-            return filtered;
-        });
-    }, [tagsText]);
+    const tags = parseTags(tagsText).map(t => t.toLowerCase());
+
+    setSelectedEmotions(prev => {
+        if (prev.length > 0) return prev;
+
+        const fromTags = EMOTIONS.filter(e => tags.includes(e.id.toLowerCase()));
+
+        if (fromTags.length > 0) {
+            if (!fromTags.find(e => e.emoji === emoji)) setEmoji('');
+            return fromTags;
+        }
+
+        return prev;
+    });
+}, [tagsText]);
 
     const isEditingToday = useMemo(() => {
         try {
