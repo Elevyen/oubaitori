@@ -210,6 +210,7 @@ export default function Dashboard() {
       fecha,
       hora,
       nota,
+      notaHash,
       emociones: Array.isArray(emociones) ? emociones : [],
       intensidad,
       etiquetas: Array.isArray(etiquetas) ? etiquetas : [],
