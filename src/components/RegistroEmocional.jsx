@@ -753,7 +753,7 @@ export default function RegistroEmocional({
 
             const within6Days = isWithinLastNDays(fechaPayload, 6);
             const alreadyExists = hasExistingForDate(fechaPayload, existingEntry);
-            if (!(initial && initial.id) && alreadyExists && within6Days) {
+            if (!isEditingToday && alreadyExists && within6Days) {
                 setError('Ya existe un registro para esa fecha. Solo se permite 1 registro por día.');
                 setSaving(false);
                 return;
@@ -784,8 +784,11 @@ export default function RegistroEmocional({
             carga.userId = String(resolvedUserId);
 
             // Si venimos de edición, forzar registroId desde initial
-            if (initial && (initial.id || initial._id)) {
-                const registroId = String(initial.id || initial._id || '').trim();
+            if (isEditingToday && initial && (initial.id || initial._id)) {
+                const registroId = String(
+                    initial.id || initial._id || ''
+                ).trim();
+
                 if (registroId) {
                     carga.id = registroId;
                     carga._id = registroId;
