@@ -1,7 +1,7 @@
 // src/api/entries.js
 import { buildHeaders } from '../utils/utils.js';
 
-const API_BASE = import.meta.env?.VITE_LOCAL_BACKEND || '';
+const API_BASE = import.meta.env?.VITE_RENDER_BACKEND || '';
 
 /**
  * Helpers de parseo seguro
