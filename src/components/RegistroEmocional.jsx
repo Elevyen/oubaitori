@@ -470,21 +470,21 @@ export default function RegistroEmocional({
     };
 
     useEffect(() => {
-    const tags = parseTags(tagsText).map(t => t.toLowerCase());
+        const tags = parseTags(tagsText).map(t => t.toLowerCase());
 
-    setSelectedEmotions(prev => {
-        if (prev.length > 0) return prev;
+        setSelectedEmotions(prev => {
+            if (prev.length > 0) return prev;
 
-        const fromTags = EMOTIONS.filter(e => tags.includes(e.id.toLowerCase()));
+            const fromTags = EMOTIONS.filter(e => tags.includes(e.id.toLowerCase()));
 
-        if (fromTags.length > 0) {
-            if (!fromTags.find(e => e.emoji === emoji)) setEmoji('');
-            return fromTags;
-        }
+            if (fromTags.length > 0) {
+                if (!fromTags.find(e => e.emoji === emoji)) setEmoji('');
+                return fromTags;
+            }
 
-        return prev;
-    });
-}, [tagsText]);
+            return prev;
+        });
+    }, [tagsText]);
 
     const isEditingToday = useMemo(() => {
         try {
@@ -535,8 +535,11 @@ export default function RegistroEmocional({
                     setNote('');
                 }
 
-                if (registro.emociones && Array.isArray(registro.emociones)) {
-                    const normalized = registro.emociones.map(normalizeEmotion).filter(Boolean);
+                if (registro.etiquetas && Array.isArray(registro.etiquetas)) {
+                    const normalized = registro.etiquetas
+                        .map(tag => EMOTIONS.find(e => e.id === tag))
+                        .filter(Boolean);
+
                     setSelectedEmotions(normalized);
                 }
 
@@ -582,8 +585,11 @@ export default function RegistroEmocional({
             // asigna estado con todo el registro (nota ya desencriptada por backend si eres owner)
             setLoadedRegistroId(registro.id || registro._id || null);
             setNote(registro.nota || '');
-            if (registro.emociones && Array.isArray(registro.emociones)) {
-                const normalized = registro.emociones.map(normalizeEmotion).filter(Boolean);
+            if (registro.etiquetas && Array.isArray(registro.etiquetas)) {
+                const normalized = registro.etiquetas
+                    .map(tag => EMOTIONS.find(e => e.id === tag))
+                    .filter(Boolean);
+
                 setSelectedEmotions(normalized);
             }
             if (typeof registro.intensidad !== 'undefined' && registro.intensidad !== null) {
