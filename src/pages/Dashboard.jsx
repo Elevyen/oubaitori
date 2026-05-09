@@ -57,7 +57,7 @@ export default function Dashboard() {
   const [entradas, setEntradas] = useState([]);
   const [mesSeleccionado, setMesSeleccionado] = useState(() => {
     const d = new Date();
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+    return `${String(d.getMonth() + 1).padStart(2, "0")}-${d.getFullYear()}`; // e.g. "05-2026"
   });
 
   const [modalRegistro, setmodalRegistro] = useState(false);
@@ -641,7 +641,26 @@ export default function Dashboard() {
       console.log('Modal initial registro:', registro);
       console.debug('handleDayClick - no local entry found, fetching month to confirm', dateString);
       try {
-        const month = String(dateString).slice(0, 7);
+        let month;
+        try {
+          if (/^\d{4}-\d{2}-\d{2}$/.test(String(dateString))) {
+            const d = new Date(String(dateString) + "T00:00:00");
+            const parts = d.toLocaleDateString('sv-SE', { timeZone: 'Europe/Madrid' }).split('-');
+            const yyyy = parts[0];
+            const mm = parts[1];
+            month = `${mm}-${yyyy}`; // MM-YYYY
+          } else {
+            const d = new Date(dateString);
+            if (isNaN(d.getTime())) throw new Error('invalid_date');
+            const parts = d.toLocaleDateString('sv-SE', { timeZone: 'Europe/Madrid' }).split('-');
+            const yyyy = parts[0];
+            const mm = parts[1];
+            month = `${mm}-${yyyy}`;
+          }
+        } catch (e) {
+          // En caso de fallo, usar el mes actualmente seleccionado como fallback
+          month = mesSeleccionado;
+        }
         const remoteList = await loadEntriesByMonth(month);
         console.debug('handleDayClick - remoteList length', Array.isArray(remoteList) ? remoteList.length : 0);
         const foundRemote = (remoteList || []).find(r => {
