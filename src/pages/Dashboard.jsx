@@ -611,23 +611,18 @@ export default function Dashboard() {
     setModalLoading(true);
 
     try {
-      if (existing) {
-        // Caso: ya existe entrada local
-        if (dateString === todayKey) {
-          const hasNota = (
-            (typeof existing.nota === 'string' && existing.nota.trim().length > 0) ||
-            (typeof existing.note === 'string' && existing.note.trim().length > 0) ||
-            Boolean(existing.notaHash)
-          );
-          if ((existing.id || existing._id) && !hasNota) {
-            const full = await fetchSingleEntryById(existing.id || existing._id).catch(() => null);
-            const registro = full ? full : normalizeRegistro(existing);
-            setExistingForSelectedDate(registro);
-            setModalInitial(registro);
-            setModalLoading(false);
-            setmodalRegistro(true);
-            return;
-          }
+      if (existing && (existing.id || existing._id)) {
+        // SIEMPRE intenta obtener versión completa actualizada con nota, por ID
+        try {
+          const full = await fetchSingleEntryById(existing.id || existing._id).catch(() => null);
+          const registro = full ? full : normalizeRegistro(existing);
+          setExistingForSelectedDate(registro);
+          setModalInitial(registro);
+          setModalLoading(false);
+          setmodalRegistro(true);
+          return;
+        } catch (e) {
+          // fallback si API no responde
           const registroLocal = normalizeRegistro(existing);
           setExistingForSelectedDate(registroLocal);
           setModalInitial(registroLocal);
@@ -635,13 +630,16 @@ export default function Dashboard() {
           setmodalRegistro(true);
           return;
         }
-        // Si existe y no es hoy, no abrir modal para editar
+      }
+      // Si existe y no es hoy, no abrir modal para editar
+      if (existing && dateString !== todayKey) {
         setModalLoading(false);
         setMensajeGuia("Ya existe un registro para ese día.");
         return;
       }
 
       // No existe entrada local: hacer fallback remoto
+      console.log('Modal initial registro:', registro);
       console.debug('handleDayClick - no local entry found, fetching month to confirm', dateString);
       try {
         const month = String(dateString).slice(0, 7);
