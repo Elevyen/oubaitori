@@ -502,7 +502,15 @@ export default function RegistroEmocional({
         if (!open) return;
         const idToLoad = initial && (initial.id || initial._id) ? (initial.id || initial._id) : null;
         if (!idToLoad) return;
-        if (loadedRegistroId === idToLoad) return;
+        const sameDate =
+            formatDateKey(initial?.fecha) === formatDateKey(date);
+
+        if (
+            loadedRegistroId === idToLoad &&
+            sameDate
+        ) {
+            return;
+        }
 
         let cancelled = false;
         async function loadRegistro() {
@@ -559,8 +567,15 @@ export default function RegistroEmocional({
 
         loadRegistro();
         return () => { cancelled = true; };
-    }, [open, initial && (initial.id || initial._id), apiBase, token]);
-
+    }, [
+        open,
+        date,
+        initial?.id,
+        initial?._id,
+        apiBase,
+        token
+    ]);
+    useEffect(() => { if (!open) return; setLoadedRegistroId(null); setError(''); }, [date]);
     async function loadRegistroByDate(fechaDD) {
         if (!fechaDD) return null;
         setLoadingRegistro(true);
@@ -634,6 +649,9 @@ export default function RegistroEmocional({
         }
 
         if (!open && prevOpenRef.current) {
+
+            setLoadedRegistroId(null);
+
             if (!isEditingToday) {
                 resetForm(false);
             }
