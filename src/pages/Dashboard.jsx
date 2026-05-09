@@ -638,7 +638,6 @@ export default function Dashboard() {
       }
 
       // No existe entrada local: hacer fallback remoto
-      console.log('Modal initial registro:', registro);
       console.debug('handleDayClick - no local entry found, fetching month to confirm', dateString);
       try {
         let month;
