@@ -6,7 +6,7 @@ import RegistroEmocional from "../components/RegistroEmocional";
 import Card from "../components/ui/Card.jsx";
 import { AuthContext } from "../context/AuthContext";
 import "../styles/dashboard.css";
-import { formatDate, isWithinLast7Days, todayDate } from "../utils/date";
+import { formatDate, isWithinLast7Days, toDate, todayDate } from "../utils/date";
 
 const RECOMENDACIONES = [
   "Recuerda hidratarte, toma un sorbo de agua.",
@@ -211,7 +211,6 @@ export default function Dashboard() {
       fecha,
       hora,
       nota,
-      notaHash,
       emociones: Array.isArray(emociones) ? emociones : [],
       intensidad,
       etiquetas: Array.isArray(etiquetas) ? etiquetas : [],
@@ -566,7 +565,7 @@ export default function Dashboard() {
 
   const handleDayClick = async (dateString) => {
     const todayKey = todayDate();
-    if (dateString > todayKey) {
+    if (toDate(dateString) > toDate(todayKey)) {
       setMensajeGuia("No puedes registrar en una fecha futura.");
       return;
     }
@@ -673,8 +672,19 @@ export default function Dashboard() {
     const providedId = safePayload && (safePayload.id || safePayload._id) ? (safePayload.id || safePayload._id) : null;
 
     // Normalizar fecha a DD-MM-YYYY
-    const fechaNormalized = formatDate(safePayload?.fecha);
-    if (fechaNormalized) safePayload.fecha = fechaNormalized;
+    let fechaNormalized = safePayload?.fecha;
+
+    // Solo convertir si NO está ya en DD-MM-YYYY
+    if (
+      fechaNormalized &&
+      !/^\d{2}-\d{2}-\d{4}$/.test(fechaNormalized)
+    ) {
+      fechaNormalized = formatDate(fechaNormalized);
+    }
+
+    if (fechaNormalized) {
+      safePayload.fecha = fechaNormalized;
+    }
 
 
     if (providedId) {
@@ -1135,8 +1145,8 @@ export default function Dashboard() {
 
   const ultimaEntrada = (() => {
     const arr = [...entradasUsuario].sort((a, b) => {
-      const ta = new Date((a.createdAt || "").replace(" ", "T"))
-      const tb = new Date((b.createdAt || "").replace(" ", "T"))
+      const ta = new Date(a.createdAt || a.hora || 0).getTime();
+      const tb = new Date(b.createdAt || b.hora || 0).getTime();
       return tb - ta;
     });
     return arr[0] || null;
