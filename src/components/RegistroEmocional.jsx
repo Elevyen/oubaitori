@@ -469,11 +469,13 @@ export default function RegistroEmocional({
             setEmoji(initial.emoji || '');
             setIntensity(initial.intensity ?? 5);
             setTagsText((initial.tags || initial.etiquetas || []).join(', '));
-            const notaDescifrada = await decryptNotaSafe(
-                initial.nota || initial.notaEncrypted
-            );
+            (async () => {
+                const notaDescifrada = await decryptNotaSafe(
+                    initial.nota || initial.notaEncrypted
+                );
 
-            setNota(notaDescifrada);
+                setNota(notaDescifrada);
+            })();
             const normalized = (initial.selectedEmotions || initial.emociones || []).map(normalizeEmotion).filter(Boolean);
             setSelectedEmotions(normalized);
         } else {
@@ -553,11 +555,13 @@ export default function RegistroEmocional({
                 setLoadedRegistroId(idToLoad);
 
                 if (registro.nota !== undefined && registro.nota !== null) {
-                    const notaDescifrada = await decryptNotaSafe(
-                        registro.nota || registro.notaEncrypted
-                    );
+                    (async () => {
+                        const notaDescifrada = await decryptNotaSafe(
+                            registro.nota || registro.notaEncrypted
+                        );
 
-                    setNota(notaDescifrada);
+                        setNota(notaDescifrada);
+                    })();
                 } else {
                     setNota('');
                 }
@@ -636,11 +640,13 @@ export default function RegistroEmocional({
             const registro = body.registro;
             // asigna estado con todo el registro (nota ya desencriptada por backend si eres owner)
             setLoadedRegistroId(registro.id || registro._id || null);
-            const notaDescifrada = await decryptNotaSafe(
-                registro.nota || registro.notaEncrypted
-            );
+            (async () => {
+                const notaDescifrada = await decryptNotaSafe(
+                    registro.nota || registro.notaEncrypted
+                );
 
-            setNota(notaDescifrada);
+                setNota(notaDescifrada);
+            })();
             if (registro.etiquetas && Array.isArray(registro.etiquetas)) {
                 const normalized = registro.etiquetas
                     .map(tag => EMOTIONS.find(e => e.id === tag))
@@ -669,11 +675,13 @@ export default function RegistroEmocional({
                 setEmoji(initial.emoji || '');
                 setIntensity(initial.intensity ?? 5);
                 setTagsText((initial.tags || initial.etiquetas || []).join(', '));
-                const notaDescifrada = await decryptNotaSafe(
-                    initial.nota || initial.notaEncrypted
-                );
+                (async () => {
+                    const notaDescifrada = await decryptNotaSafe(
+                        initial.nota || initial.notaEncrypted
+                    );
 
-                setNota(notaDescifrada);
+                    setNota(notaDescifrada);
+                })();
                 const normalized = (initial.selectedEmotions || initial.emociones || []).map(normalizeEmotion).filter(Boolean);
                 setSelectedEmotions(normalized);
                 setError('');
