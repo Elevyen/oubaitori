@@ -354,22 +354,28 @@ export default function RegistroEmocional({
     notaKeyBase64
 }) {
     const normalizeEmotion = (e) => {
-        if (!e || !e.id || !e.label) return null;
+        if (!e) return null;
 
-        const ref = EMOTIONS.find(x => x.id === e.id);
-
-        if (ref) {
-            return { ...ref };
+        if (typeof e === "string") {
+            const found = EMOTIONS.find(x => x.id === e);
+            return found ? { ...found } : null;
         }
-
-        return {
-            id: String(e.id).trim(),
-            label: String(e.label).trim(),
-            emoji: e.emoji || '',
-            tipo: e.tipo || 'neutra',
-            color: e.color || '',
-            textColor: e.textColor || ''
-        };
+        // Si ya tiene id
+        if (e.id) {
+            const found = EMOTIONS.find(x => x.id === e.id);
+            if (found) {
+                return { ...found };
+            }
+            return {
+                id: String(e.id).trim(),
+                label: String(e.label || e.id).trim(),
+                emoji: e.emoji || '',
+                tipo: e.tipo || 'neutra',
+                color: e.color || '',
+                textColor: e.textColor || ''
+            };
+        }
+        return null;
     };
 
     const [emoji, setEmoji] = useState(initial.emoji || '');
@@ -627,7 +633,7 @@ export default function RegistroEmocional({
             } else {
                 // Si no hay initial pero puede existir registro para la fecha, intenta cargarlo
                 (async () => {
-                    const fechaKey =typeof date === 'string'? date: formatDate(date);
+                    const fechaKey = typeof date === 'string' ? date : formatDate(date);
                     const existing = hasExistingForDate(fechaKey, existingEntry);
                     if (existing) {
                         // intentr recuperar registro por fecha y rellenar modal
@@ -725,7 +731,7 @@ export default function RegistroEmocional({
                 throw err;
             }
 
-            const fechaPayload =typeof date === 'string' ? date: formatDate(date);
+            const fechaPayload = typeof date === 'string' ? date : formatDate(date);
 
             const within7Days = isWithinLast7Days(fechaPayload);
             const alreadyExists = hasExistingForDate(fechaPayload, existingEntry);
@@ -737,14 +743,17 @@ export default function RegistroEmocional({
 
             const intensidadNum = Number(intensity);
 
-            const emociones = selectedEmotions.map(e => ({
-                id: String(e.id),
-                label: String(e.label || ''),
-                emoji: e.emoji || '',
-                tipo: e.tipo || null,
-                color: e.color || '',
-                textColor: e.textColor || ''
-            })).filter(e => e.id && e.label);
+            const emociones = selectedEmotions
+                .map(normalizeEmotion)
+                .filter(Boolean)
+                .map(e => ({
+                    id: String(e.id),
+                    label: String(e.label || ''),
+                    emoji: e.emoji || '',
+                    tipo: e.tipo || 'neutra',
+                    color: e.color || '',
+                    textColor: e.textColor || ''
+                }));
 
             // Construcción de carga base
             const carga = {
