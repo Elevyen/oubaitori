@@ -350,7 +350,7 @@ export default function RegistroEmocional({
     guardarRegistro: guardarRegistroProp,
     sincronizarConServidor: sincronizarProp,
     apiBase = '',
-    existingEntry = false,
+    existingEntry = null,
     notaKeyBase64
 }) {
     const normalizeEmotion = (e) => {
@@ -360,15 +360,17 @@ export default function RegistroEmocional({
             const found = EMOTIONS.find(x => x.id === e);
             return found ? { ...found } : null;
         }
-        // Si ya tiene id
+
         const emotionId = String(e.id || e.label || '').trim();
 
         if (!emotionId) return null;
 
         const found = EMOTIONS.find(x => x.id === emotionId);
+
         if (found) {
             return { ...found };
         }
+
         return {
             id: String(emotionId).trim(),
             label: String(e.label || e.id).trim(),
@@ -377,108 +379,193 @@ export default function RegistroEmocional({
             color: e.color || '',
             textColor: e.textColor || ''
         };
-    }
-    return null;
-};
+    };
+    const [emoji, setEmoji] = useState(initial.emoji || '');
+    const [intensity, setIntensity] = useState(initial.intensity ?? 5);
+    const [tagsText, setTagsText] = useState((initial.tags || initial.etiquetas || []).join(', '));
+    const [nota, setNota] = useState(initial?.nota || '');
+    useEffect(() => {
+        setNota(initial?.nota || '');
+    }, [initial]);
+    const [saving, setSaving] = useState(false);
 
-const [emoji, setEmoji] = useState(initial.emoji || '');
-const [intensity, setIntensity] = useState(initial.intensity ?? 5);
-const [tagsText, setTagsText] = useState((initial.tags || initial.etiquetas || []).join(', '));
-const [nota, setNota] = useState(initial?.nota || '');
-useEffect(() => {
-    setNota(initial?.nota);
-}, [initial]);
-const [saving, setSaving] = useState(false);
+    const [error, setError] = useState('');
+    const prevOpenRef = useRef(false);
 
-const [error, setError] = useState('');
-const prevOpenRef = useRef(false);
+    const [loadedRegistroId, setLoadedRegistroId] = useState(null);
+    const [loadingRegistro, setLoadingRegistro] = useState(false);
 
-const [loadedRegistroId, setLoadedRegistroId] = useState(null);
-const [loadingRegistro, setLoadingRegistro] = useState(false);
+    const resolveUserId = (u) => {
+        if (!u) return null;
+        return String(u._id || u.id || u.userId || u._userId || '');
+    };
 
-const resolveUserId = (u) => {
-    if (!u) return null;
-    return String(u._id || u.id || u.userId || u._userId || '');
-};
+    const usuario = usuarioProp || (() => {
+        try {
+            const raw = localStorage.getItem('userData');
+            return raw ? JSON.parse(raw) : null;
+        } catch {
+            return null;
+        }
+    })();
 
-const usuario = usuarioProp || (() => {
-    try {
-        const raw = localStorage.getItem('userData');
-        return raw ? JSON.parse(raw) : null;
-    } catch {
-        return null;
-    }
-})();
+    const token = tokenProp || (() => {
+        return sessionStorage.getItem('authToken') || localStorage.getItem('userToken') || null;
+    })();
 
-const token = tokenProp || (() => {
-    return sessionStorage.getItem('authToken') || localStorage.getItem('userToken') || null;
-})();
+    const guardarRegistro = guardarRegistroProp || ((payload, opts = {}) => defaultGuardarRegistro(payload, { token: opts.token || token, apiBase: apiBase || '' }));
+    const sincronizarConServidor = sincronizarProp || ((opts = {}) => defaultSincronizar({ token: opts.token || token, apiBase: apiBase || '' }));
 
-const guardarRegistro = guardarRegistroProp || ((payload, opts = {}) => defaultGuardarRegistro(payload, { token: opts.token || token, apiBase: apiBase || '' }));
-const sincronizarConServidor = sincronizarProp || ((opts = {}) => defaultSincronizar({ token: opts.token || token, apiBase: apiBase || '' }));
+    const parseTags = (text) => (text || '').split(',').map(t => t.trim().toLowerCase()).filter(Boolean);
+    const joinTags = (arr) => Array.from(new Set(arr)).join(', ');
+    const [filter, setFilter] = useState('');
+    const selectedEmotions = useMemo(() => {
+        const tags = parseTags(tagsText);
 
-const parseTags = (text) => (text || '').split(',').map(t => t.trim().toLowerCase()).filter(Boolean);
-const joinTags = (arr) => Array.from(new Set(arr)).join(', ');
-const [filter, setFilter] = useState(''); const selectedEmotions = useMemo(() => {
-    const tags = parseTags(tagsText);
+        return tags
+            .map(tag => normalizeEmotion(tag))
+            .filter(Boolean)
+            .map(e => ({
+                id: String(e.id),
+                label: String(e.label || e.id),
+                emoji: e.emoji || '',
+                tipo: e.tipo || 'neutra',
+                color: e.color || '',
+                textColor: e.textColor || ''
+            }));
+    }, [tagsText]);
 
-    return tags
-        .map(tag => normalizeEmotion(tag))
-        .filter(Boolean)
-        .map(e => ({
-            id: String(e.id),
-            label: String(e.label || e.id),
-            emoji: e.emoji || '',
-            tipo: e.tipo || 'neutra',
-            color: e.color || '',
-            textColor: e.textColor || ''
-        }));
-}, [tagsText]);
+    const freeTags = useMemo(() => {
+        const tags = parseTags(tagsText);
 
-const resetForm = (useInitial = false) => {
-    if (useInitial && initial && Object.keys(initial).length > 0) {
-        setEmoji(initial.emoji || '');
-        setIntensity(initial.intensity ?? 5);
-        setTagsText((initial.tags || initial.etiquetas || []).join(', '));
-        setNota(initial.nota || '');
-    } else {
-        setEmoji('');
+        return tags.filter(tag => !normalizeEmotion(tag));
+    }, [tagsText]);
+
+    const resetForm = (useInitial = false) => {
+        if (useInitial && initial && Object.keys(initial).length > 0) {
+            setEmoji(initial.emoji || '');
+            setIntensity(initial.intensity ?? 5);
+            setTagsText((initial.tags || initial.etiquetas || []).join(', '));
+            setNota(initial.nota || '');
+        } else {
+            setEmoji('');
+            setIntensity(5);
+            setTagsText('');
+            setNota('');
+        }
+        setError('');
+    };
+
+    const isEditingToday = useMemo(() => {
+        try {
+            if (!initial || !(initial.id || initial._id)) return false;
+            const initialFecha = initial.fecha || initial.date || null;
+            if (!initialFecha) return false;
+            const todayKey = todayDate();
+            return formatDate(initialFecha) === todayKey;
+        } catch {
+            return false;
+        }
+    }, [initial?.id, initial?.fecha]);
+
+    useEffect(() => {
+        if (!open) return;
+        const idToLoad = initial && (initial.id || initial._id) ? (initial.id || initial._id) : null;
+        if (!idToLoad) return;
+        const sameDate = formatDate(initial?.fecha) === formatDate(date)
+        if (
+            loadedRegistroId === idToLoad &&
+            sameDate
+        ) {
+            return;
+        }
+
+        let cancelled = false;
+        async function loadRegistro() {
+            setLoadingRegistro(true);
+            try {
+                const resp = await fetch(`${apiBase}/api/registros/${encodeURIComponent(idToLoad)}`, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        Authorization: `Bearer ${token}`
+                    }
+                });
+                if (!resp.ok) {
+                    setLoadingRegistro(false);
+                    return;
+                }
+                const body = await resp.json().catch(() => null);
+                if (!body || !body.ok || !body.registro) {
+                    setLoadingRegistro(false);
+                    return;
+                }
+                if (cancelled) return;
+
+                const registro = body.registro;
+                setLoadedRegistroId(idToLoad);
+
+                if (registro.nota !== undefined && registro.nota !== null) {
+                    setNota(registro.nota || '');
+                } else {
+                    setNota('');
+                }
+
+                if (typeof registro.intensidad !== 'undefined' && registro.intensidad !== null) {
+                    setIntensity(registro.intensidad);
+                }
+
+                if (registro.etiquetas && Array.isArray(registro.etiquetas)) {
+                    const emotionTags = Array.isArray(registro.emociones)
+                        ? registro.emociones.map(e => e.id).filter(Boolean)
+                        : [];
+
+                    const customTags = Array.isArray(registro.etiquetas)
+                        ? registro.etiquetas
+                        : [];
+
+                    setTagsText([...emotionTags, ...customTags].join(', '));
+                }
+            } catch (err) {
+                console.error('Error cargando registro remoto:', err);
+            } finally {
+                if (!cancelled) setLoadingRegistro(false);
+            }
+        }
+
+        loadRegistro();
+        return () => { cancelled = true; };
+    }, [
+        open,
+        date,
+        initial?.id,
+        initial?._id,
+        apiBase,
+        token
+    ]);
+    useEffect(() => {
+        if (!open) return;
+
+        setLoadedRegistroId(null);
+        setError('');
+
+        if (!initial || Object.keys(initial).length === 0) {
+            resetForm(false);
+        }
+    }, [date, open]);
+
+    async function loadRegistroByDate(fechaDD) {
+        // LIMPIAR ESTADO ANTES DE CARGAR
+        setLoadedRegistroId(null);
+        setNota('');
         setIntensity(5);
         setTagsText('');
-        setNota('');
-    }
-    setError('');
-};
 
-const isEditingToday = useMemo(() => {
-    try {
-        if (!initial || !(initial.id || initial._id)) return false;
-        const initialFecha = initial.fecha || initial.date || null;
-        if (!initialFecha) return false;
-        const todayKey = todayDate();
-        return formatDate(initialFecha) === todayKey;
-    } catch {
-        return false;
-    }
-}, [initial?.id, initial?.fecha]);
+        if (!fechaDD) return null;
 
-useEffect(() => {
-    if (!open) return;
-    const idToLoad = initial && (initial.id || initial._id) ? (initial.id || initial._id) : null;
-    if (!idToLoad) return;
-    const sameDate = formatDate(initial?.fecha) === formatDate(date)
-    if (
-        loadedRegistroId === idToLoad &&
-        sameDate
-    ) {
-        return;
-    }
-
-    let cancelled = false;
-    async function loadRegistro() {
         setLoadingRegistro(true);
         try {
-            const resp = await fetch(`${apiBase}/api/registros/${encodeURIComponent(idToLoad)}`, {
+            const resp = await fetch(`${apiBase}/api/registros/fecha/${encodeURIComponent(fechaDD)}`, {
                 method: 'GET',
                 headers: {
                     'Content-Type': 'application/json',
@@ -487,245 +574,177 @@ useEffect(() => {
             });
             if (!resp.ok) {
                 setLoadingRegistro(false);
-                return;
+                return null;
             }
             const body = await resp.json().catch(() => null);
             if (!body || !body.ok || !body.registro) {
                 setLoadingRegistro(false);
-                return;
+                return null;
             }
-            if (cancelled) return;
-
             const registro = body.registro;
-            setLoadedRegistroId(idToLoad);
-
-            if (registro.nota !== undefined && registro.nota !== null) {
-                setNota(registro.nota || '');
-            } else {
-                setNota('');
-            }
-
+            // asigna estado con todo el registro (nota ya desencriptada por backend si eres owner)
+            setLoadedRegistroId(registro.id || registro._id || null);
+            setNota(registro.nota || '');
             if (typeof registro.intensidad !== 'undefined' && registro.intensidad !== null) {
                 setIntensity(registro.intensidad);
             }
-
             if (registro.etiquetas && Array.isArray(registro.etiquetas)) {
-                setTagsText((registro.etiquetas || []).join(', '));
-            }
-        } catch (err) {
-            console.error('Error cargando registro remoto:', err);
-        } finally {
-            if (!cancelled) setLoadingRegistro(false);
-        }
-    }
+                    const emotionTags = Array.isArray(registro.emociones)
+                        ? registro.emociones.map(e => e.id).filter(Boolean)
+                        : [];
 
-    loadRegistro();
-    return () => { cancelled = true; };
-}, [
-    open,
-    date,
-    initial?.id,
-    initial?._id,
-    apiBase,
-    token
-]);
-useEffect(() => {
-    if (!open) return;
+                    const customTags = Array.isArray(registro.etiquetas)
+                        ? registro.etiquetas
+                        : [];
 
-    setLoadedRegistroId(null);
-    setError('');
-
-    if (!initial || Object.keys(initial).length === 0) {
-        resetForm(false);
-    }
-}, [date, open]);
-
-async function loadRegistroByDate(fechaDD) {
-    // LIMPIAR ESTADO ANTES DE CARGAR
-    setLoadedRegistroId(null);
-    setNota('');
-    setIntensity(5);
-    setTagsText('');
-
-    if (!fechaDD) return null;
-
-    setLoadingRegistro(true);
-    try {
-        const resp = await fetch(`${apiBase}/api/registros/fecha/${encodeURIComponent(fechaDD)}`, {
-            method: 'GET',
-            headers: {
-                'Content-Type': 'application/json',
-                Authorization: `Bearer ${token}`
-            }
-        });
-        if (!resp.ok) {
-            setLoadingRegistro(false);
-            return null;
-        }
-        const body = await resp.json().catch(() => null);
-        if (!body || !body.ok || !body.registro) {
-            setLoadingRegistro(false);
-            return null;
-        }
-        const registro = body.registro;
-        // asigna estado con todo el registro (nota ya desencriptada por backend si eres owner)
-        setLoadedRegistroId(registro.id || registro._id || null);
-        setNota(registro.nota || '');
-        if (typeof registro.intensidad !== 'undefined' && registro.intensidad !== null) {
-            setIntensity(registro.intensidad);
-        }
-        if (registro.etiquetas && Array.isArray(registro.etiquetas)) {
-            setTagsText((registro.etiquetas || []).join(', '));
-        }
-        return registro;
-    } catch (err) {
-        console.error('Error cargando registro por fecha:', err);
-        return null;
-    } finally {
-        setLoadingRegistro(false);
-    }
-}
-
-useEffect(() => {
-    if (open && !prevOpenRef.current) {
-        if (initial && Object.keys(initial).length > 0) {
-            setEmoji(initial.emoji || '');
-            setIntensity(initial.intensity ?? 5);
-            setTagsText((initial.tags || initial.etiquetas || []).join(', '));
-            setNota(initial.nota || '');
-            setError('');
-        } else {
-            // Si no hay initial pero puede existir registro para la fecha, intenta cargarlo
-            (async () => {
-                const fechaKey = typeof date === 'string' ? date : formatDate(date);
-                const existing = hasExistingForDate(fechaKey, existingEntry);
-                if (existing) {
-                    // intentr recuperar registro por fecha y rellenar modal
-                    const reg = await loadRegistroByDate(fechaKey);
-                    if (!reg) resetForm(false);
-                } else {
-                    resetForm(false);
+                    setTagsText([...emotionTags, ...customTags].join(', '));
                 }
-            })();
+            return registro;
+        } catch (err) {
+            console.error('Error cargando registro por fecha:', err);
+            return null;
+        } finally {
+            setLoadingRegistro(false);
         }
     }
 
-    if (!open && prevOpenRef.current) {
-
-        setLoadedRegistroId(null);
-
-        if (!isEditingToday) {
-            resetForm(false);
+    useEffect(() => {
+        if (open && !prevOpenRef.current) {
+            if (initial && Object.keys(initial).length > 0) {
+                setEmoji(initial.emoji || '');
+                setIntensity(initial.intensity ?? 5);
+                setTagsText((initial.tags || initial.etiquetas || []).join(', '));
+                setNota(initial.nota || '');
+                setError('');
+            } else {
+                // Si no hay initial pero puede existir registro para la fecha, intenta cargarlo
+                (async () => {
+                    const fechaKey = typeof date === 'string' ? date : formatDate(date);
+                    const existing = hasExistingForDate(fechaKey, existingEntry);
+                    if (existing) {
+                        // intentr recuperar registro por fecha y rellenar modal
+                        const reg = await loadRegistroByDate(fechaKey);
+                        if (!reg) resetForm(false);
+                    } else {
+                        resetForm(false);
+                    }
+                })();
+            }
         }
-    }
-    prevOpenRef.current = open;
-}, [open, initial?.id, isEditingToday]);
 
-const togglePreset = (emotion) => {
-    const tags = parseTags(tagsText);
+        if (!open && prevOpenRef.current) {
 
-    const exists = tags.some(
-        t => t.toLowerCase() === emotion.id.toLowerCase()
-    );
+            setLoadedRegistroId(null);
 
-    if (exists) {
-        const next = tags.filter(t => t !== emotion.id);
+            if (!isEditingToday) {
+                resetForm(false);
+            }
+        }
+        prevOpenRef.current = open;
+    }, [open, initial?.id, isEditingToday]);
+
+    const togglePreset = (emotion) => {
+        const tags = parseTags(tagsText);
+
+        const exists = tags.some(
+            t => t.toLowerCase() === emotion.id.toLowerCase()
+        );
+
+        if (exists) {
+            const next = tags.filter(t => t.toLowerCase() !== emotion.id.toLowerCase());
+            setTagsText(joinTags(next));
+
+            if (emoji === emotion.emoji) {
+                setEmoji('');
+            }
+        } else {
+            const next = [...tags, emotion.id];
+            setTagsText(joinTags(next));
+
+            if (!emoji) {
+                setEmoji(emotion.emoji);
+            }
+        }
+    };
+
+    const removeSelectedEmotion = (id) => {
+        const tags = parseTags(tagsText);
+
+        const next = tags.filter(t => t !== id);
+
         setTagsText(joinTags(next));
 
-        if (emoji === emotion.emoji) {
+        const removed = selectedEmotions.find(e => e.id === id);
+
+        if (removed && removed.emoji === emoji) {
             setEmoji('');
         }
-    } else {
-        const next = [...tags, emotion.id];
-        setTagsText(joinTags(next));
+    };
 
-        if (!emoji) {
-            setEmoji(emotion.emoji);
+    const handlePresetKey = (ev, preset) => {
+        if (ev.key === 'Enter' || ev.key === ' ') {
+            ev.preventDefault();
+            togglePreset(preset);
         }
-    }
-};
+    };
 
-const removeSelectedEmotion = (id) => {
-    const tags = parseTags(tagsText);
+    const handleTagsKey = (ev) => {
+        if (ev.key === 'Enter') {
+            ev.preventDefault();
+            const parts = parseTags(tagsText);
+            setTagsText(joinTags(parts));
+        }
+    };
 
-    const next = tags.filter(t => t !== id);
-
-    setTagsText(joinTags(next));
-
-    const removed = selectedEmotions.find(e => e.id === id);
-
-    if (removed && removed.emoji === emoji) {
-        setEmoji('');
-    }
-};
-
-const handlePresetKey = (ev, preset) => {
-    if (ev.key === 'Enter' || ev.key === ' ') {
-        ev.preventDefault();
-        togglePreset(preset);
-    }
-};
-
-const handleTagsKey = (ev) => {
-    if (ev.key === 'Enter') {
-        ev.preventDefault();
+    const handleTagsBlur = () => {
         const parts = parseTags(tagsText);
         setTagsText(joinTags(parts));
-    }
-};
+    };
 
-const handleTagsBlur = () => {
-    const parts = parseTags(tagsText);
-    setTagsText(joinTags(parts));
-};
-
-// Encriptar nota en cliente usando notaKeyBase64
-async function encryptNotaOrThrow(plain) {
-    if (!plain) return null;
-    if (typeof notaKeyBase64 !== 'string' || !notaKeyBase64.trim()) {
-        throw new Error('encrypt_not_configured');
-    }
-    try {
-        return await encryptAesGcmBase64BackendFormat(String(plain), notaKeyBase64);
-    } catch (e) {
-        console.error('encryptAesGcmBase64BackendFormat failed', e);
-        if (e.message === 'invalid_key_length') throw new Error('encrypt_invalid_key');
-        throw new Error('encrypt_failed');
-    }
-}
-
-async function submit() {
-    setSaving(true);
-    setError('');
-    try {
-        const resolvedUserId = resolveUserId(usuario);
-        if (!resolvedUserId) {
-            const err = new Error('Usuario no autenticado');
-            err.code = 'Usuario no autenticado';
-            throw err;
+    // Encriptar nota en cliente usando notaKeyBase64
+    async function encryptNotaOrThrow(plain) {
+        if (!plain) return null;
+        if (typeof notaKeyBase64 !== 'string' || !notaKeyBase64.trim()) {
+            throw new Error('encrypt_not_configured');
         }
-        if (!token) {
-            const err = new Error('Token ausente');
-            err.code = 'no_token';
-            throw err;
+        try {
+            return await encryptAesGcmBase64BackendFormat(String(plain), notaKeyBase64);
+        } catch (e) {
+            console.error('encryptAesGcmBase64BackendFormat failed', e);
+            if (e.message === 'invalid_key_length') throw new Error('encrypt_invalid_key');
+            throw new Error('encrypt_failed');
         }
+    }
 
-        const fechaPayload = typeof date === 'string' ? date : formatDate(date);
+    async function submit() {
+        setSaving(true);
+        setError('');
+        try {
+            const resolvedUserId = resolveUserId(usuario);
+            if (!resolvedUserId) {
+                const err = new Error('Usuario no autenticado');
+                err.code = 'Usuario no autenticado';
+                throw err;
+            }
+            if (!token) {
+                const err = new Error('Token ausente');
+                err.code = 'no_token';
+                throw err;
+            }
 
-        const within7Days = isWithinLast7Days(fechaPayload);
-        const alreadyExists = !!existingEntry && formatDate(existingEntry?.fecha || existingEntry?.date) === formatDate(fechaPayload);
-        if (!isEditingToday && alreadyExists && within7Days) {
-            setError('Ya existe un registro para esa fecha. Solo se permite 1 registro por día.');
-            setSaving(false);
-            return;
-        }
+            const fechaPayload = typeof date === 'string' ? date : formatDate(date);
 
-        const intensidadNum = Number(intensity);
+            const within7Days = isWithinLast7Days(fechaPayload);
+            const alreadyExists = existingEntry && formatDate(existingEntry.fecha || existingEntry.date) === formatDate(fechaPayload);
+            if (!isEditingToday && alreadyExists && within7Days) {
+                setError('Ya existe un registro para esa fecha. Solo se permite 1 registro por día.');
+                setSaving(false);
+                return;
+            }
 
-        const emociones = selectedEmotions
-            .map(normalizeEmotion)
-            .filter(Boolean)
-            .map(e => ({
+            const intensidadNum = Number(intensity);
+
+            const emociones = selectedEmotions.map(e => ({
                 id: String(e.id),
                 label: String(e.label || ''),
                 emoji: e.emoji || '',
@@ -734,324 +753,324 @@ async function submit() {
                 textColor: e.textColor || ''
             }));
 
-        // Construcción de carga base
-        const carga = {
-            fecha: fechaPayload,
-            emociones,
-            intensidad: intensidadNum,
-            etiquetas: tagsText ? tagsText.split(',').map(t => t.trim()).filter(Boolean) : [],
-            version: initial && initial.version ? initial.version : 1
-        };
+            // Construcción de carga base
+            const carga = {
+                fecha: fechaPayload,
+                emociones,
+                intensidad: intensidadNum,
+                etiquetas: freeTags,
+                version: initial && initial.version ? initial.version : 1
+            };
 
-        // Añadir userId explícito (normalizado)
-        carga.userId = String(resolvedUserId);
+            // Añadir userId explícito (normalizado)
+            carga.userId = String(resolvedUserId);
 
-        // Si venimos de edición, forzar registroId desde initial
-        const isTodayRecord =
-            formatDate(fechaPayload) === todayDate();
+            // Si venimos de edición, forzar registroId desde initial
+            const isTodayRecord =
+                formatDate(fechaPayload) === todayDate();
 
-        if (
-            isTodayRecord &&
-            initial &&
-            (initial.id || initial._id)
-        ) {
-            const registroId = String(
-                initial.id || initial._id || ''
-            ).trim();
-
-            if (registroId) {
-                carga.id = registroId;
-                carga._id = registroId;
-            }
-        }
-
-        // Encriptar nota en cliente y añadir notaEncrypted
-        let notaEncryptedToSend = null;
-        if ((nota || '').trim().length > 0) {
-            try {
-                notaEncryptedToSend = await encryptNotaOrThrow(nota);
-            } catch (encErr) {
-                console.error('encryptNota failed:', encErr);
-                const err = new Error(encErr.message === 'encrypt_not_configured' ? 'No hay método de encriptación configurado.' : 'No se pudo encriptar la nota. Intenta de nuevo más tarde.');
-                err.code = encErr.message === 'encrypt_not_configured' ? 'encrypt_not_configured' : (encErr.message === 'encrypt_invalid_key' ? 'encrypt_invalid_key' : 'encrypt_failed');
-                throw err;
-            }
-            carga.notaEncrypted = notaEncryptedToSend;
-        } else {
             if (
                 isTodayRecord &&
                 initial &&
                 (initial.id || initial._id)
             ) {
-                carga.notaEncrypted = null;
-            }
-        }
-        // Los registros anteriores nunca deben actualizarse
-        if (formatDate(fechaPayload) !== todayDate()) {
-            delete carga.id;
-            delete carga._id;
-        }
-        // Normalizar y sanitizar IDs antes de enviar
-        const safeCarga = ensureIdsAreStrings(carga);
+                const registroId = String(
+                    initial.id || initial._id || ''
+                ).trim();
 
-        // Eliminar id/_id/userId vacíos (evita enviar cadenas vacías)
-        if (safeCarga.id !== undefined) {
-            safeCarga.id = String(safeCarga.id || '').trim();
-            if (safeCarga.id === '') delete safeCarga.id;
-        }
-        if (safeCarga._id !== undefined) {
-            safeCarga._id = String(safeCarga._id || '').trim();
-            if (safeCarga._id === '') delete safeCarga._id;
-        }
-        if (safeCarga.userId !== undefined) {
-            safeCarga.userId = String(safeCarga.userId || '').trim();
-            if (safeCarga.userId === '') delete safeCarga.userId;
-        }
-
-        // Logs para depuración (muestra lo esencial, evita exponer nota en claro)
-        try {
-            console.debug('RegistroEmocional submit payload (final):', {
-                fecha: safeCarga.fecha,
-                id: safeCarga.id,
-                userIdPresent: !!safeCarga.userId,
-                notaEncryptedPresent: !!safeCarga.notaEncrypted,
-                emocionesCount: Array.isArray(safeCarga.emociones) ? safeCarga.emociones.length : 0
-            });
-        } catch (e) { }
-        // DEBUG TEMPORAL: inspeccionar payload final que se va a enviar
-        console.debug('DEBUG submit - payload final (pre-send):', {
-            fecha: safeCarga.fecha,
-            id: safeCarga.id,
-            userId: safeCarga.userId,
-            notaEncryptedPresent: Object.prototype.hasOwnProperty.call(safeCarga, 'notaEncrypted'),
-            notaEncryptedIsNull: safeCarga.notaEncrypted === null,
-            emocionesCount: Array.isArray(safeCarga.emociones)
-                ? safeCarga.emociones.length
-                : 0
-        });
-
-        let guardado;
-        try {
-            guardado = await guardarRegistro(safeCarga, { token });
-        } catch (errSave) {
-            // Si backend devuelve 409 con detalle y isToday true, reintentar PUT
-            if ((errSave && errSave.code === 'Límite día') || (errSave && errSave.message && errSave.message.toLowerCase().includes('ya existe'))) {
-                // fallback: llamar a la API para obtener registro por fecha y usar su id
-                try {
-                    const fechaPayload = formatDate(date);
-                    const resp = await fetch(`${apiBase}/api/registros/fecha/${fechaPayload}`, {
-                        headers: { Authorization: `Bearer ${token}` }
-                    });
-                    if (resp.ok) {
-                        const body = await resp.json();
-                        const existingId = body?.registro?.id;
-                        if (existingId) {
-                            safeCarga.id = existingId;
-                            safeCarga._id = existingId;
-                            guardado = await guardarRegistro(safeCarga, { token });
-                        }
-                    }
-                } catch (e) {
-                    // seguir con el error original
+                if (registroId) {
+                    carga.id = registroId;
+                    carga._id = registroId;
                 }
             }
-            if (!guardado) throw errSave;
-        }
 
-        if (navigator.onLine) {
-            try {
-                await sincronizarConServidor({ token, userId: resolvedUserId });
-            } catch (err) {
-                console.warn('sincronización inmediata fallida', err);
+            // Encriptar nota en cliente y añadir notaEncrypted
+            let notaEncryptedToSend = null;
+            if ((nota || '').trim().length > 0) {
+                try {
+                    notaEncryptedToSend = await encryptNotaOrThrow(nota);
+                } catch (encErr) {
+                    console.error('encryptNota failed:', encErr);
+                    const err = new Error(encErr.message === 'encrypt_not_configured' ? 'No hay método de encriptación configurado.' : 'No se pudo encriptar la nota. Intenta de nuevo más tarde.');
+                    err.code = encErr.message === 'encrypt_not_configured' ? 'encrypt_not_configured' : (encErr.message === 'encrypt_invalid_key' ? 'encrypt_invalid_key' : 'encrypt_failed');
+                    throw err;
+                }
+                carga.notaEncrypted = notaEncryptedToSend;
+            } else {
+                if (
+                    isTodayRecord &&
+                    initial &&
+                    (initial.id || initial._id)
+                ) {
+                    carga.notaEncrypted = null;
+                }
             }
-        } else {
-            try {
-                const raw = localStorage.getItem('pendingRegistros');
-                const pendientes = raw ? JSON.parse(raw) : [];
-
-                const pending = { ...safeCarga };
-                pending.fecha = formatDate(pending.fecha);
-                if (!pending.id) pending.id = generateClientId();
-                // Si notaEncrypted es undefined, no incluirla para evitar sobrescribir en servidor
-                if (typeof pending.notaEncrypted === 'undefined') delete pending.notaEncrypted;
-                pendientes.push(pending);
-                localStorage.setItem('pendingRegistros', JSON.stringify(pendientes));
-            } catch (e) {
-                console.warn('No se pudo guardar pendiente localmente', e);
+            // Los registros anteriores nunca deben actualizarse
+            if (formatDate(fechaPayload) !== todayDate()) {
+                delete carga.id;
+                delete carga._id;
             }
-        }
+            // Normalizar y sanitizar IDs antes de enviar
+            const safeCarga = ensureIdsAreStrings(carga);
 
-        if (typeof onSave === 'function') onSave(guardado);
+            // Eliminar id/_id/userId vacíos (evita enviar cadenas vacías)
+            if (safeCarga.id !== undefined) {
+                safeCarga.id = String(safeCarga.id || '').trim();
+                if (safeCarga.id === '') delete safeCarga.id;
+            }
+            if (safeCarga._id !== undefined) {
+                safeCarga._id = String(safeCarga._id || '').trim();
+                if (safeCarga._id === '') delete safeCarga._id;
+            }
+            if (safeCarga.userId !== undefined) {
+                safeCarga.userId = String(safeCarga.userId || '').trim();
+                if (safeCarga.userId === '') delete safeCarga.userId;
+            }
 
-        if (!isEditingToday) {
-            resetForm(false);
-        }
-        onClose();
-    } catch (err) {
-        console.error('error guardando registro', err);
-        if (err && (err.code === 'No encontrado' || String(err.message).toLowerCase().includes('no encontrado') || String(err.message).toLowerCase().includes('not found'))) {
+            // Logs para depuración (muestra lo esencial, evita exponer nota en claro)
             try {
-                clearLocalRecordCacheForDateOrId({ id: initial && (initial.id || initial._id), fecha: formatDate(date) });
+                console.debug('RegistroEmocional submit payload (final):', {
+                    fecha: safeCarga.fecha,
+                    id: safeCarga.id,
+                    userIdPresent: !!safeCarga.userId,
+                    notaEncryptedPresent: !!safeCarga.notaEncrypted,
+                    emocionesCount: Array.isArray(safeCarga.emociones) ? safeCarga.emociones.length : 0
+                });
             } catch (e) { }
-        }
+            // DEBUG TEMPORAL: inspeccionar payload final que se va a enviar
+            console.debug('DEBUG submit - payload final (pre-send):', {
+                fecha: safeCarga.fecha,
+                id: safeCarga.id,
+                userId: safeCarga.userId,
+                notaEncryptedPresent: Object.prototype.hasOwnProperty.call(safeCarga, 'notaEncrypted'),
+                notaEncryptedIsNull: safeCarga.notaEncrypted === null,
+                emocionesCount: Array.isArray(safeCarga.emociones)
+                    ? safeCarga.emociones.length
+                    : 0
+            });
 
-        if (err && err.code === 'limite_dia_alcanzado') {
-            setError('Sólo se permite 1 registro por día.');
-        } else if (err && err.code === 'No encontrado') {
-            setError('No se encontró el registro a editar. Intenta recargar la página.');
-        } else if (err && err.code === 'error_actualizando') {
-            setError('No se pudo actualizar el registro. Intenta de nuevo más tarde.');
-        } else if (err && (err.code === 'Usuario no autenticado' || err.code === 'no_token' || err.code === 'no_autorizado')) {
-            setError('Usuario no autenticado. Inicia sesión e inténtalo de nuevo.');
-        } else if (err && err.code === 'encrypt_failed') {
-            setError('No se pudo encriptar la nota. Intenta de nuevo más tarde.');
-        } else if (err && err.code === 'encrypt_not_configured') {
-            setError('No hay método de encriptación configurado. Contacta con la app.');
-        } else if (err && err.code === 'encrypt_invalid_key') {
-            setError('Clave de encriptación inválida. Contacta con la app.');
-        } else {
-            setError(err.message || 'No se pudo guardar el registro.');
+            let guardado;
+            try {
+                guardado = await guardarRegistro(safeCarga, { token });
+            } catch (errSave) {
+                // Si backend devuelve 409 con detalle y isToday true, reintentar PUT
+                if ((errSave && errSave.code === 'Límite día') || (errSave && errSave.message && errSave.message.toLowerCase().includes('ya existe'))) {
+                    // fallback: llamar a la API para obtener registro por fecha y usar su id
+                    try {
+                        const fechaPayload = formatDate(date);
+                        const resp = await fetch(`${apiBase}/api/registros/fecha/${fechaPayload}`, {
+                            headers: { Authorization: `Bearer ${token}` }
+                        });
+                        if (resp.ok) {
+                            const body = await resp.json();
+                            const existingId = body?.registro?.id;
+                            if (existingId) {
+                                safeCarga.id = existingId;
+                                safeCarga._id = existingId;
+                                guardado = await guardarRegistro(safeCarga, { token });
+                            }
+                        }
+                    } catch (e) {
+                        // seguir con el error original
+                    }
+                }
+                if (!guardado) throw errSave;
+            }
+
+            if (navigator.onLine) {
+                try {
+                    await sincronizarConServidor({ token, userId: resolvedUserId });
+                } catch (err) {
+                    console.warn('sincronización inmediata fallida', err);
+                }
+            } else {
+                try {
+                    const raw = localStorage.getItem('pendingRegistros');
+                    const pendientes = raw ? JSON.parse(raw) : [];
+
+                    const pending = { ...safeCarga };
+                    pending.fecha = formatDate(pending.fecha);
+                    if (!pending.id) pending.id = generateClientId();
+                    // Si notaEncrypted es undefined, no incluirla para evitar sobrescribir en servidor
+                    if (typeof pending.notaEncrypted === 'undefined') delete pending.notaEncrypted;
+                    pendientes.push(pending);
+                    localStorage.setItem('pendingRegistros', JSON.stringify(pendientes));
+                } catch (e) {
+                    console.warn('No se pudo guardar pendiente localmente', e);
+                }
+            }
+
+            if (typeof onSave === 'function') onSave(guardado);
+
+            if (!isEditingToday) {
+                resetForm(false);
+            }
+            onClose();
+        } catch (err) {
+            console.error('error guardando registro', err);
+            if (err && (err.code === 'No encontrado' || String(err.message).toLowerCase().includes('no encontrado') || String(err.message).toLowerCase().includes('not found'))) {
+                try {
+                    clearLocalRecordCacheForDateOrId({ id: initial && (initial.id || initial._id), fecha: formatDate(date) });
+                } catch (e) { }
+            }
+
+            if (err && err.code === 'limite_dia_alcanzado') {
+                setError('Sólo se permite 1 registro por día.');
+            } else if (err && err.code === 'No encontrado') {
+                setError('No se encontró el registro a editar. Intenta recargar la página.');
+            } else if (err && err.code === 'error_actualizando') {
+                setError('No se pudo actualizar el registro. Intenta de nuevo más tarde.');
+            } else if (err && (err.code === 'Usuario no autenticado' || err.code === 'no_token' || err.code === 'no_autorizado')) {
+                setError('Usuario no autenticado. Inicia sesión e inténtalo de nuevo.');
+            } else if (err && err.code === 'encrypt_failed') {
+                setError('No se pudo encriptar la nota. Intenta de nuevo más tarde.');
+            } else if (err && err.code === 'encrypt_not_configured') {
+                setError('No hay método de encriptación configurado. Contacta con la app.');
+            } else if (err && err.code === 'encrypt_invalid_key') {
+                setError('Clave de encriptación inválida. Contacta con la app.');
+            } else {
+                setError(err.message || 'No se pudo guardar el registro.');
+            }
+        } finally {
+            setSaving(false);
         }
-    } finally {
-        setSaving(false);
     }
-}
 
-if (!open) return null;
+    if (!open) return null;
 
-const visiblePresets = EMOTIONS.filter(e =>
-    e.label.toLowerCase().includes(filter.trim().toLowerCase())
-);
+    const visiblePresets = EMOTIONS.filter(e =>
+        e.label.toLowerCase().includes(filter.trim().toLowerCase())
+    );
 
-const formattedDate = formatDate(date);
+    const formattedDate = formatDate(date);
 
-return (
-    <div className="modal-overlay" role="dialog" aria-modal="true" aria-label="Formulario de emoción">
-        <div className="modal-card">
-            <header className="modal-header">
-                <h3>{isEditingToday ? 'Editar registro de hoy' : 'Registrar emoción'}</h3>
-                <div className="modal-date">{formattedDate}</div>
-            </header>
+    return (
+        <div className="modal-overlay" role="dialog" aria-modal="true" aria-label="Formulario de emoción">
+            <div className="modal-card">
+                <header className="modal-header">
+                    <h3>{isEditingToday ? 'Editar registro de hoy' : 'Registrar emoción'}</h3>
+                    <div className="modal-date">{formattedDate}</div>
+                </header>
 
-            <div className="modal-body">
-                <div className="selected-bar" aria-hidden={selectedEmotions.length === 0}>
-                    {selectedEmotions.length === 0 ? (
-                        <div className="selected-placeholder">No hay emociones seleccionadas</div>
-                    ) : (
-                        selectedEmotions.map(s => (
-                            <div key={s.id} className="selected-chip" title={s.label} style={{ background: s.color || '#eee', color: s.textColor || '#111' }}>
-                                <span className="chip-emoji" role="img" aria-label={s.label} style={{ marginRight: 6 }}>
-                                    {s.emoji}
-                                </span>
-                                <span className="chip-label">{s.label}</span>
-                                <button
-                                    type="button"
-                                    className="chip-remove small"
-                                    onClick={() => removeSelectedEmotion(s.id)}
-                                    onKeyDown={(ev) => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); removeSelectedEmotion(s.id); } }}
-                                    aria-label={`Quitar ${s.label}`}
-                                    title={`Quitar ${s.label}`}>×</button>
-                            </div>
-                        ))
-                    )}
-                </div>
-
-                <div className="field">
-                    <div className="field-label">Buscar emoción</div>
-                    <input
-                        autoFocus
-                        value={filter}
-                        onChange={e => setFilter(e.target.value)}
-                        placeholder="Filtrar emociones..."
-                        aria-label="Buscar emoción"
-                    />
-                </div>
-
-                <div className="field">
-                    <div className="field-label">Elegir emoción (pasa por encima para ver nombre) — haz click para añadir a etiquetas</div>
-                    <div className="presets" style={{ maxHeight: 200, overflowY: 'auto' }}>
-                        {visiblePresets.map(e => {
-                            const isSelected = !!selectedEmotions.find(s => s.id === e.id);
-                            return (
-                                <button
-                                    key={e.id}
-                                    type="button"
-                                    className={`preset-btn ${isSelected ? 'preset-selected' : ''}`}
-                                    onClick={() => togglePreset(e)}
-                                    onKeyDown={(ev) => handlePresetKey(ev, e)}
-                                    title={e.label}
-                                    aria-pressed={isSelected}
-                                    aria-label={`${isSelected ? 'Quitar' : 'Añadir'} ${e.label} a tags`}
-                                    style={{
-                                        '--preset-bg': e.color,
-                                        '--preset-fg': e.textColor
-                                    }}
-                                >
-                                    <span role="img" aria-label={e.label} className="preset-emoji">
-                                        {e.emoji}
+                <div className="modal-body">
+                    <div className="selected-bar" aria-hidden={selectedEmotions.length === 0}>
+                        {selectedEmotions.length === 0 ? (
+                            <div className="selected-placeholder">No hay emociones seleccionadas</div>
+                        ) : (
+                            selectedEmotions.map(s => (
+                                <div key={s.id} className="selected-chip" title={s.label} style={{ background: s.color || '#eee', color: s.textColor || '#111' }}>
+                                    <span className="chip-emoji" role="img" aria-label={s.label} style={{ marginRight: 6 }}>
+                                        {s.emoji}
                                     </span>
-                                </button>
-                            );
-                        })}
+                                    <span className="chip-label">{s.label}</span>
+                                    <button
+                                        type="button"
+                                        className="chip-remove small"
+                                        onClick={() => removeSelectedEmotion(s.id)}
+                                        onKeyDown={(ev) => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); removeSelectedEmotion(s.id); } }}
+                                        aria-label={`Quitar ${s.label}`}
+                                        title={`Quitar ${s.label}`}>×</button>
+                                </div>
+                            ))
+                        )}
                     </div>
-                    <div className="hint" style={{ marginTop: 8, fontSize: 12, color: '#666' }}>
-                        Haz click en un icono para añadir la emoción a las etiquetas; también puedes escribir etiquetas manualmente.
+
+                    <div className="field">
+                        <div className="field-label">Buscar emoción</div>
+                        <input
+                            autoFocus
+                            value={filter}
+                            onChange={e => setFilter(e.target.value)}
+                            placeholder="Filtrar emociones..."
+                            aria-label="Buscar emoción"
+                        />
                     </div>
+
+                    <div className="field">
+                        <div className="field-label">Elegir emoción (pasa por encima para ver nombre) — haz click para añadir a etiquetas</div>
+                        <div className="presets" style={{ maxHeight: 200, overflowY: 'auto' }}>
+                            {visiblePresets.map(e => {
+                                const isSelected = !!selectedEmotions.find(s => s.id === e.id);
+                                return (
+                                    <button
+                                        key={e.id}
+                                        type="button"
+                                        className={`preset-btn ${isSelected ? 'preset-selected' : ''}`}
+                                        onClick={() => togglePreset(e)}
+                                        onKeyDown={(ev) => handlePresetKey(ev, e)}
+                                        title={e.label}
+                                        aria-pressed={isSelected}
+                                        aria-label={`${isSelected ? 'Quitar' : 'Añadir'} ${e.label} a tags`}
+                                        style={{
+                                            '--preset-bg': e.color,
+                                            '--preset-fg': e.textColor
+                                        }}
+                                    >
+                                        <span role="img" aria-label={e.label} className="preset-emoji">
+                                            {e.emoji}
+                                        </span>
+                                    </button>
+                                );
+                            })}
+                        </div>
+                        <div className="hint" style={{ marginTop: 8, fontSize: 12, color: '#666' }}>
+                            Haz click en un icono para añadir la emoción a las etiquetas; también puedes escribir etiquetas manualmente.
+                        </div>
+                    </div>
+
+                    <label className="field">
+                        <div className="field-label">Intensidad</div>
+                        <input
+                            type="range"
+                            min="0"
+                            max="10"
+                            value={intensity}
+                            onChange={e => setIntensity(Number(e.target.value))}
+                            aria-label="Intensidad"
+                        />
+                        <div className="range-value">{intensity}/10</div>
+                    </label>
+
+                    <label className="field">
+                        <div className="field-label">Etiquetas</div>
+                        <input
+                            value={tagsText}
+                            onChange={e => setTagsText(e.target.value)}
+                            onKeyDown={handleTagsKey}
+                            onBlur={handleTagsBlur}
+                            placeholder="separa con comas (p. ej. ansiedad, optimismo, amor)"
+                            aria-label="Etiquetas"
+                        />
+                        <div style={{ marginTop: 6, fontSize: 12, color: '#666' }}>
+                            Las etiquetas pueden ser texto libre o las emociones de los iconos.
+                        </div>
+                    </label>
+
+                    <label className="field">
+                        <div className="field-label">Nota</div>
+                        <textarea
+                            value={nota}
+                            onChange={e => setNota(e.target.value)}
+                            maxLength={2000}
+                            placeholder="Escribe aquí... (máx 2000 caracteres)"
+                            aria-label="Nota"
+                        />
+                        <div style={{ marginTop: 6, fontSize: 12, color: '#666' }}>
+                            La nota se encriptará, tus datos están seguros.
+                        </div>
+                    </label>
                 </div>
 
-                <label className="field">
-                    <div className="field-label">Intensidad</div>
-                    <input
-                        type="range"
-                        min="0"
-                        max="10"
-                        value={intensity}
-                        onChange={e => setIntensity(Number(e.target.value))}
-                        aria-label="Intensidad"
-                    />
-                    <div className="range-value">{intensity}/10</div>
-                </label>
+                {error && <div className="error" role="alert" style={{ padding: 12, color: '#8b0000' }}>{error}</div>}
 
-                <label className="field">
-                    <div className="field-label">Etiquetas</div>
-                    <input
-                        value={tagsText}
-                        onChange={e => setTagsText(e.target.value)}
-                        onKeyDown={handleTagsKey}
-                        onBlur={handleTagsBlur}
-                        placeholder="separa con comas (p. ej. ansiedad, optimismo, amor)"
-                        aria-label="Etiquetas"
-                    />
-                    <div style={{ marginTop: 6, fontSize: 12, color: '#666' }}>
-                        Las etiquetas pueden ser texto libre o las emociones de los iconos.
-                    </div>
-                </label>
-
-                <label className="field">
-                    <div className="field-label">Nota</div>
-                    <textarea
-                        value={nota}
-                        onChange={e => setNota(e.target.value)}
-                        maxLength={2000}
-                        placeholder="Escribe aquí... (máx 2000 caracteres)"
-                        aria-label="Nota"
-                    />
-                    <div style={{ marginTop: 6, fontSize: 12, color: '#666' }}>
-                        La nota se encriptará, tus datos están seguros.
-                    </div>
-                </label>
+                <footer className="modal-footer">
+                    <button className="btn-secondary" onClick={() => {
+                        if (!isEditingToday) resetForm(false);
+                        onClose();
+                    }} disabled={saving}>Cancelar</button>
+                    <button className="btn-primary" onClick={submit} disabled={saving}>{saving ? 'Guardando...' : (isEditingToday ? 'Actualizar' : 'Guardar')}</button>
+                </footer>
             </div>
-
-            {error && <div className="error" role="alert" style={{ padding: 12, color: '#8b0000' }}>{error}</div>}
-
-            <footer className="modal-footer">
-                <button className="btn-secondary" onClick={() => {
-                    if (!isEditingToday) resetForm(false);
-                    onClose();
-                }} disabled={saving}>Cancelar</button>
-                <button className="btn-primary" onClick={submit} disabled={saving}>{saving ? 'Guardando...' : (isEditingToday ? 'Actualizar' : 'Guardar')}</button>
-            </footer>
         </div>
-    </div>
-);
+    );
 }
