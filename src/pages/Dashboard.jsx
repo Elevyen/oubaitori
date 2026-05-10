@@ -1173,14 +1173,23 @@ export default function Dashboard() {
     };
   }, [token]);
 
-  const currentUserId = String(user?._id || storedUser?._id || "").trim();
+  const currentUserId = String(user?._id || user?.id || storedUser?._id || storedUser?.id || "").trim();
+  console.log("currentUserId", currentUserId);
+
+console.log(
+  "entradas userIds",
+  entradas.map((e) => ({
+    userId: e.userId,
+    usuarioId: e.usuarioId
+  }))
+);
   const currentUserEmail = (user?.email || storedUser?.email || "").toLowerCase().trim();
 
   const entradasUsuario = (entradas || []).filter((e) => {
   const entryUid = String(e.usuarioId || e.userId || e.usuario?._id || e.user?.id || "").trim();
   return entryUid === currentUserId;
 });
-
+console.log("entradasUsuario", entradasUsuario);
   const entradasUsuarioOrdenadas = [...entradasUsuario].sort((a, b) => {
   const ta = new Date(a.createdAt?.$date || a.createdAt || a.hora?.$date || a.hora || 0).getTime();
   const tb = new Date( b.createdAt?.$date || b.createdAt || b.hora?.$date || b.hora || 0).getTime();
