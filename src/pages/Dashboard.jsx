@@ -468,104 +468,104 @@ export default function Dashboard() {
 
   //normaliza fechas a YYYY-MM-DD y compara
   const findEntryForDate = (fechaYYYYMMDD) => {
-  if (!fechaYYYYMMDD) return null;
+    if (!fechaYYYYMMDD) return null;
 
-  const targetKey = formatDate(fechaYYYYMMDD);
+    const targetKey = formatDate(fechaYYYYMMDD);
 
-  const uid = String(
-    user?._id ||
-    storedUser?._id ||
-    user?.id ||
-    storedUser?.id ||
-    ""
-  ).trim();
-
-  const email = (
-    user?.email ||
-    storedUser?.email ||
-    ""
-  ).toLowerCase() || null;
-
-  const entryMatchesDate = (entry) => {
-    if (!entry) return false;
-
-    const candidates = [
-      entry.fecha,
-      entry.date
-    ]
-      .filter(Boolean)
-      .map(formatDate);
-
-    return candidates.some((c) => c === targetKey);
-  };
-
-  const entryMatchesOwner = (entry) => {
-    const entryUid = String(
-      entry.usuarioId ||
-      entry.userId ||
-      entry.usuario?._id ||
-      entry.usuario?.id ||
-      entry.user?._id ||
-      entry.user?.id ||
+    const uid = String(
+      user?._id ||
+      storedUser?._id ||
+      user?.id ||
+      storedUser?.id ||
       ""
     ).trim();
 
-    if (entryUid && uid && entryUid === uid) return true;
-
-    const entryEmail = (
-      entry.usuario?.email ||
-      entry.user?.email ||
-      entry.email ||
+    const email = (
+      user?.email ||
+      storedUser?.email ||
       ""
-    ).toLowerCase();
+    ).toLowerCase() || null;
 
-    if (entryEmail && email && entryEmail === email) return true;
+    const entryMatchesDate = (entry) => {
+      if (!entry) return false;
 
-    return false;
-  };
+      const candidates = [
+        entry.fecha,
+        entry.date
+      ]
+        .filter(Boolean)
+        .map(formatDate);
 
-  const searchList = (list) => {
-    if (!Array.isArray(list)) return null;
+      return candidates.some((c) => c === targetKey);
+    };
 
-    for (const e of list) {
-      if (!e) continue;
+    const entryMatchesOwner = (entry) => {
+      const entryUid = String(
+        entry.usuarioId ||
+        entry.userId ||
+        entry.usuario?._id ||
+        entry.usuario?.id ||
+        entry.user?._id ||
+        entry.user?.id ||
+        ""
+      ).trim();
 
-      if (entryMatchesDate(e) && entryMatchesOwner(e)) {
-        return e;
+      if (entryUid && uid && entryUid === uid) return true;
+
+      const entryEmail = (
+        entry.usuario?.email ||
+        entry.user?.email ||
+        entry.email ||
+        ""
+      ).toLowerCase();
+
+      if (entryEmail && email && entryEmail === email) return true;
+
+      return false;
+    };
+
+    const searchList = (list) => {
+      if (!Array.isArray(list)) return null;
+
+      for (const e of list) {
+        if (!e) continue;
+
+        if (entryMatchesDate(e) && entryMatchesOwner(e)) {
+          return e;
+        }
       }
-    }
+
+      return null;
+    };
+
+    const foundInEntradas = searchList(entradas);
+
+    if (foundInEntradas) return foundInEntradas;
+
+    const cache = loadEntradasCache({
+      userId: uid || null,
+      userEmail: email || null
+    });
+
+    const foundInCache = searchList(cache);
+
+    if (foundInCache) return foundInCache;
+
+    try {
+      const raw = localStorage.getItem("pendingRegistros");
+
+      const pendientes = raw ? JSON.parse(raw) : [];
+
+      const normalizedPendientes = (pendientes || [])
+        .map(ensureIdsAreStrings);
+
+      const foundInPendientes = searchList(normalizedPendientes);
+
+      if (foundInPendientes) return foundInPendientes;
+    } catch (e) { }
 
     return null;
   };
-
-  const foundInEntradas = searchList(entradas);
-
-  if (foundInEntradas) return foundInEntradas;
-
-  const cache = loadEntradasCache({
-    userId: uid || null,
-    userEmail: email || null
-  });
-
-  const foundInCache = searchList(cache);
-
-  if (foundInCache) return foundInCache;
-
-  try {
-    const raw = localStorage.getItem("pendingRegistros");
-
-    const pendientes = raw ? JSON.parse(raw) : [];
-
-    const normalizedPendientes = (pendientes || [])
-      .map(ensureIdsAreStrings);
-
-    const foundInPendientes = searchList(normalizedPendientes);
-
-    if (foundInPendientes) return foundInPendientes;
-  } catch (e) {}
-
-  return null;
-};
 
   const contarRegistrosDelDia = (fechaDDMMYYYY) => {
     if (!fechaDDMMYYYY) return 0;
@@ -1184,14 +1184,35 @@ export default function Dashboard() {
     return false;
   });
 
-  const ultimaEntrada = (() => {
-    const arr = [...entradasUsuario].sort((a, b) => {
-      const ta = new Date(a.createdAt || a.hora || 0).getTime();
-      const tb = new Date(b.createdAt || b.hora || 0).getTime();
-      return tb - ta;
-    });
-    return arr[0] || null;
-  })();
+  const entradasUsuarioOrdenadas = [...entradasUsuario].sort((a, b) => {
+    const ta = new Date(a.createdAt || a.hora || 0).getTime();
+    const tb = new Date(b.createdAt || b.hora || 0).getTime();
+    return tb - ta;
+  });
+
+  const ultimaEntrada = entradasUsuarioOrdenadas[0] || null;
+
+  const ultimaFechaRegistrada = ultimaEntrada
+    ? formatDate(
+      ultimaEntrada.fecha ||
+      ultimaEntrada.date ||
+      ultimaEntrada.createdAt
+    )
+    : null;
+
+  const ultimasEmociones = ultimaFechaRegistrada
+    ? entradasUsuarioOrdenadas
+      .filter((entry) => {
+        const fechaEntry = formatDate(entry.fecha || entry.date || entry.createdAt);
+        return fechaEntry === ultimaFechaRegistrada;
+      })
+      .flatMap((entry) => {
+        if (Array.isArray(entry.emociones)) {
+          return entry.emociones;
+        }
+        return [];
+      })
+      .slice(0, 5) : [];
 
   const handleGuardarEntrada = async (savedOrPayload) => {
     try {
@@ -1352,12 +1373,18 @@ export default function Dashboard() {
 
                 <section className="status-row-compact section-margin">
                   <Card variant="status-card-compact">
-                    <h3>Última emoción</h3>
+                    <h3>Últimas emociones</h3>
+
                     <p className="status-emotion">
-                      {ultimaEntrada ? `${ultimaEntrada.emotion || ultimaEntrada.emociones?.[0]?.label || ""} ${ultimaEntrada.emoji || ""}` : "Sin registros"}
+                      {ultimasEmociones.length > 0 ? (
+                        ultimasEmociones.map((emocion, index) => (
+                          <span key={index} style={{ marginRight: 6 }}>
+                            {emocion?.emoji || "🙂"}
+                          </span>
+                        ))) : ("Sin registros")}
                     </p>
                     <p className="status-detail">
-                      {ultimaEntrada ? `${ultimaEntrada.intensity || ultimaEntrada.intensidad || ""}/10 · ${ultimaEntrada.date || ultimaEntrada.fecha}` : "Empieza registrando hoy."}
+                      {ultimaFechaRegistrada || "Empieza registrando hoy."}
                     </p>
                   </Card>
                   <Card variant="status-card-compact">
