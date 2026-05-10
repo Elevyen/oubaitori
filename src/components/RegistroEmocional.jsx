@@ -350,7 +350,7 @@ export default function RegistroEmocional({
     guardarRegistro: guardarRegistroProp,
     sincronizarConServidor: sincronizarProp,
     apiBase = '',
-    existingEntry = null,
+    existingEntry = false,
     notaKeyBase64
 }) {
     const normalizeEmotion = (e) => {
@@ -360,35 +360,38 @@ export default function RegistroEmocional({
             const found = EMOTIONS.find(x => x.id === e);
             return found ? { ...found } : null;
         }
+        // Si ya tiene id
+        const emotionId = e.id || e.label;
 
-        const emotionId = String(e.id || e.label || '').trim();
-
-        if (!emotionId) return null;
-
-        const found = EMOTIONS.find(x => x.id === emotionId);
-
-        if (found) {
-            return { ...found };
+        if (emotionId) {
+            const found = EMOTIONS.find(x => x.id === emotionId);
+            if (found) {
+                return { ...found };
+            }
+            return {
+                id: String(emotionId).trim(),
+                label: String(e.label || e.id).trim(),
+                emoji: e.emoji || '',
+                tipo: e.tipo || 'neutra',
+                color: e.color || '',
+                textColor: e.textColor || ''
+            };
         }
-
-        return {
-            id: String(emotionId).trim(),
-            label: String(e.label || e.id).trim(),
-            emoji: e.emoji || '',
-            tipo: e.tipo || 'neutra',
-            color: e.color || '',
-            textColor: e.textColor || ''
-        };
+        return null;
     };
+
     const [emoji, setEmoji] = useState(initial.emoji || '');
     const [intensity, setIntensity] = useState(initial.intensity ?? 5);
     const [tagsText, setTagsText] = useState((initial.tags || initial.etiquetas || []).join(', '));
     const [nota, setNota] = useState(initial?.nota || '');
     useEffect(() => {
-        setNota(initial?.nota || '');
+        setNota(initial?.nota);
     }, [initial]);
     const [saving, setSaving] = useState(false);
-
+    const [filter, setFilter] = useState('');
+    const [selectedEmotions, setSelectedEmotions] = useState(
+        (initial.selectedEmotions || initial.emociones || []).map(normalizeEmotion).filter(Boolean)
+    );
     const [error, setError] = useState('');
     const prevOpenRef = useRef(false);
 
@@ -418,28 +421,19 @@ export default function RegistroEmocional({
 
     const parseTags = (text) => (text || '').split(',').map(t => t.trim().toLowerCase()).filter(Boolean);
     const joinTags = (arr) => Array.from(new Set(arr)).join(', ');
-    const [filter, setFilter] = useState('');
-    const selectedEmotions = useMemo(() => {
-        const tags = parseTags(tagsText);
 
-        return tags
-            .map(tag => normalizeEmotion(tag))
-            .filter(Boolean)
-            .map(e => ({
-                id: String(e.id),
-                label: String(e.label || e.id),
-                emoji: e.emoji || '',
-                tipo: e.tipo || 'neutra',
-                color: e.color || '',
-                textColor: e.textColor || ''
-            }));
-    }, [tagsText]);
+    const addTagIdToText = (id) => {
+        const parts = parseTags(tagsText);
+        if (!parts.includes(id.toLowerCase())) {
+            parts.push(id.toLowerCase());
+            setTagsText(joinTags(parts));
+        }
+    };
 
-    const freeTags = useMemo(() => {
-        const tags = parseTags(tagsText);
-
-        return tags.filter(tag => !normalizeEmotion(tag));
-    }, [tagsText]);
+    const removeTagIdFromText = (id) => {
+        const parts = parseTags(tagsText).filter(t => t !== id.toLowerCase());
+        setTagsText(joinTags(parts));
+    };
 
     const resetForm = (useInitial = false) => {
         if (useInitial && initial && Object.keys(initial).length > 0) {
@@ -447,14 +441,34 @@ export default function RegistroEmocional({
             setIntensity(initial.intensity ?? 5);
             setTagsText((initial.tags || initial.etiquetas || []).join(', '));
             setNota(initial.nota || '');
+            const normalized = (initial.selectedEmotions || initial.emociones || []).map(normalizeEmotion).filter(Boolean);
+            setSelectedEmotions(normalized);
         } else {
             setEmoji('');
             setIntensity(5);
             setTagsText('');
             setNota('');
+            setSelectedEmotions([]);
         }
         setError('');
     };
+
+    useEffect(() => {
+        const tags = parseTags(tagsText).map(t => t.toLowerCase());
+
+        setSelectedEmotions(prev => {
+            if (prev.length > 0) return prev;
+
+            const fromTags = EMOTIONS.filter(e => tags.includes(e.id.toLowerCase()));
+
+            if (fromTags.length > 0) {
+                if (!fromTags.find(e => e.emoji === emoji)) setEmoji('');
+                return fromTags;
+            }
+
+            return prev;
+        });
+    }, [tagsText]);
 
     const isEditingToday = useMemo(() => {
         try {
@@ -511,20 +525,20 @@ export default function RegistroEmocional({
                     setNota('');
                 }
 
+                if (registro.etiquetas && Array.isArray(registro.etiquetas)) {
+                    const normalized = registro.etiquetas
+                        .map(tag => EMOTIONS.find(e => e.id === tag))
+                        .filter(Boolean);
+
+                    setSelectedEmotions(normalized);
+                }
+
                 if (typeof registro.intensidad !== 'undefined' && registro.intensidad !== null) {
                     setIntensity(registro.intensidad);
                 }
 
                 if (registro.etiquetas && Array.isArray(registro.etiquetas)) {
-                    const emotionTags = Array.isArray(registro.emociones)
-                        ? registro.emociones.map(e => e.id).filter(Boolean)
-                        : [];
-
-                    const customTags = Array.isArray(registro.etiquetas)
-                        ? registro.etiquetas
-                        : [];
-
-                    setTagsText([...emotionTags, ...customTags].join(', '));
+                    setTagsText((registro.etiquetas || []).join(', '));
                 }
             } catch (err) {
                 console.error('Error cargando registro remoto:', err);
@@ -558,6 +572,7 @@ export default function RegistroEmocional({
         // LIMPIAR ESTADO ANTES DE CARGAR
         setLoadedRegistroId(null);
         setNota('');
+        setSelectedEmotions([]);
         setIntensity(5);
         setTagsText('');
 
@@ -585,20 +600,19 @@ export default function RegistroEmocional({
             // asigna estado con todo el registro (nota ya desencriptada por backend si eres owner)
             setLoadedRegistroId(registro.id || registro._id || null);
             setNota(registro.nota || '');
+            if (registro.etiquetas && Array.isArray(registro.etiquetas)) {
+                const normalized = registro.etiquetas
+                    .map(tag => EMOTIONS.find(e => e.id === tag))
+                    .filter(Boolean);
+
+                setSelectedEmotions(normalized);
+            }
             if (typeof registro.intensidad !== 'undefined' && registro.intensidad !== null) {
                 setIntensity(registro.intensidad);
             }
             if (registro.etiquetas && Array.isArray(registro.etiquetas)) {
-                    const emotionTags = Array.isArray(registro.emociones)
-                        ? registro.emociones.map(e => e.id).filter(Boolean)
-                        : [];
-
-                    const customTags = Array.isArray(registro.etiquetas)
-                        ? registro.etiquetas
-                        : [];
-
-                    setTagsText([...emotionTags, ...customTags].join(', '));
-                }
+                setTagsText((registro.etiquetas || []).join(', '));
+            }
             return registro;
         } catch (err) {
             console.error('Error cargando registro por fecha:', err);
@@ -615,6 +629,8 @@ export default function RegistroEmocional({
                 setIntensity(initial.intensity ?? 5);
                 setTagsText((initial.tags || initial.etiquetas || []).join(', '));
                 setNota(initial.nota || '');
+                const normalized = (initial.selectedEmotions || initial.emociones || []).map(normalizeEmotion).filter(Boolean);
+                setSelectedEmotions(normalized);
                 setError('');
             } else {
                 // Si no hay initial pero puede existir registro para la fecha, intenta cargarlo
@@ -643,42 +659,27 @@ export default function RegistroEmocional({
         prevOpenRef.current = open;
     }, [open, initial?.id, isEditingToday]);
 
-    const togglePreset = (emotion) => {
-        const tags = parseTags(tagsText);
-
-        const exists = tags.some(
-            t => t.toLowerCase() === emotion.id.toLowerCase()
-        );
-
+    const togglePreset = (e) => {
+        const exists = selectedEmotions.find(s => s.id === e.id);
         if (exists) {
-            const next = tags.filter(t => t.toLowerCase() !== emotion.id.toLowerCase());
-            setTagsText(joinTags(next));
-
-            if (emoji === emotion.emoji) {
-                setEmoji('');
-            }
+            setSelectedEmotions(prev => prev.filter(s => s.id !== e.id));
+            removeTagIdFromText(e.id);
+            if (emoji === e.emoji) setEmoji('');
         } else {
-            const next = [...tags, emotion.id];
-            setTagsText(joinTags(next));
-
-            if (!emoji) {
-                setEmoji(emotion.emoji);
-            }
+            setSelectedEmotions(prev => [...prev, { id: e.id, label: e.label, emoji: e.emoji, tipo: e.tipo, color: e.color, textColor: e.textColor }]);
+            addTagIdToText(e.id);
+            if (!emoji) setEmoji(e.emoji);
         }
     };
 
     const removeSelectedEmotion = (id) => {
-        const tags = parseTags(tagsText);
-
-        const next = tags.filter(t => t !== id);
-
-        setTagsText(joinTags(next));
-
-        const removed = selectedEmotions.find(e => e.id === id);
-
-        if (removed && removed.emoji === emoji) {
-            setEmoji('');
-        }
+        setSelectedEmotions(prev => {
+            const removed = prev.find(s => s.id === id);
+            const next = prev.filter(s => s.id !== id);
+            if (removed && emoji === removed.emoji) setEmoji('');
+            removeTagIdFromText(id);
+            return next;
+        });
     };
 
     const handlePresetKey = (ev, preset) => {
@@ -735,7 +736,7 @@ export default function RegistroEmocional({
             const fechaPayload = typeof date === 'string' ? date : formatDate(date);
 
             const within7Days = isWithinLast7Days(fechaPayload);
-            const alreadyExists = existingEntry && formatDate(existingEntry.fecha || existingEntry.date) === formatDate(fechaPayload);
+            const alreadyExists = !!existingEntry && formatDate(existingEntry?.fecha || existingEntry?.date) === formatDate(fechaPayload);
             if (!isEditingToday && alreadyExists && within7Days) {
                 setError('Ya existe un registro para esa fecha. Solo se permite 1 registro por día.');
                 setSaving(false);
@@ -744,21 +745,24 @@ export default function RegistroEmocional({
 
             const intensidadNum = Number(intensity);
 
-            const emociones = selectedEmotions.map(e => ({
-                id: String(e.id),
-                label: String(e.label || ''),
-                emoji: e.emoji || '',
-                tipo: e.tipo || 'neutra',
-                color: e.color || '',
-                textColor: e.textColor || ''
-            }));
+            const emociones = selectedEmotions
+                .map(normalizeEmotion)
+                .filter(Boolean)
+                .map(e => ({
+                    id: String(e.id),
+                    label: String(e.label || ''),
+                    emoji: e.emoji || '',
+                    tipo: e.tipo || 'neutra',
+                    color: e.color || '',
+                    textColor: e.textColor || ''
+                }));
 
             // Construcción de carga base
             const carga = {
                 fecha: fechaPayload,
                 emociones,
                 intensidad: intensidadNum,
-                etiquetas: freeTags,
+                etiquetas: tagsText ? tagsText.split(',').map(t => t.trim()).filter(Boolean) : [],
                 version: initial && initial.version ? initial.version : 1
             };
 
@@ -797,11 +801,7 @@ export default function RegistroEmocional({
                 }
                 carga.notaEncrypted = notaEncryptedToSend;
             } else {
-                if (
-                    isTodayRecord &&
-                    initial &&
-                    (initial.id || initial._id)
-                ) {
+                if (initial && (initial.id || initial._id)) {
                     carga.notaEncrypted = null;
                 }
             }
