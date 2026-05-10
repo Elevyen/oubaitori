@@ -354,18 +354,23 @@ export default function RegistroEmocional({
     notaKeyBase64
 }) {
     const normalizeEmotion = (e) => {
-        if (!e) return null;
-        const ref = EMOTIONS.find(x => x.id === e.id);
-        if (ref) return { ...ref };
-        return {
-            id: e.id,
-            label: e.label || '',
-            emoji: e.emoji || '',
-            tipo: e.tipo || null,
-            color: e.color || '',
-            textColor: e.textColor || ''
-        };
+    if (!e || !e.id || !e.label) return null;
+
+    const ref = EMOTIONS.find(x => x.id === e.id);
+
+    if (ref) {
+        return { ...ref };
+    }
+
+    return {
+        id: String(e.id).trim(),
+        label: String(e.label).trim(),
+        emoji: e.emoji || '',
+        tipo: e.tipo || 'neutra',
+        color: e.color || '',
+        textColor: e.textColor || ''
     };
+};
 
     const [emoji, setEmoji] = useState(initial.emoji || '');
     const [intensity, setIntensity] = useState(initial.intensity ?? 5);
