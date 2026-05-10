@@ -693,7 +693,6 @@ export default function Dashboard() {
 
       const bodyForPut = {
         fecha: safePayload.fecha,
-        hora: safePayload.hora,
         emociones: safePayload.emociones,
         intensidad: safePayload.intensidad,
         etiquetas: safePayload.etiquetas,

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import '../styles/modal.css';
-import { formatDate, isWithinLast7Days, spainTime, todayDate } from '../utils/date';
+import { formatDate, isWithinLast7Days, todayDate } from '../utils/date';
 
 const EMOTIONS = [
     { id: 'alegria', label: 'Alegría', emoji: '😊', tipo: 'buena', color: '#F2D94E', textColor: '#111111' },
@@ -736,7 +736,6 @@ export default function RegistroEmocional({
             // Construcción de carga base
             const carga = {
                 fecha: fechaPayload,
-                hora: spainTime(),
                 emociones,
                 intensidad: intensidadNum,
                 etiquetas: tagsText ? tagsText.split(',').map(t => t.trim()).filter(Boolean) : [],
