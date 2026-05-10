@@ -1177,18 +1177,16 @@ export default function Dashboard() {
   const currentUserEmail = (user?.email || storedUser?.email || "").toLowerCase().trim();
 
   const entradasUsuario = (entradas || []).filter((e) => {
-    const entryUid = String(e.usuarioId || e.userId || e.usuario?._id || "").trim();
-    if (entryUid && currentUserId && entryUid === currentUserId) return true;
-    const entryEmail = (e.usuario?.email || e.email || "").toLowerCase().trim();
-    if (entryEmail && currentUserEmail && entryEmail === currentUserEmail) return true;
-    return false;
-  });
+  const entryUid = String(e.usuarioId || e.userId || e.usuario?._id || e.user?.id || "").trim();
+  return entryUid === currentUserId;
+});
 
   const entradasUsuarioOrdenadas = [...entradasUsuario].sort((a, b) => {
-    const ta = new Date(a.createdAt || a.hora || 0).getTime();
-    const tb = new Date(b.createdAt || b.hora || 0).getTime();
-    return tb - ta;
-  });
+  const ta = new Date(a.createdAt?.$date || a.createdAt || a.hora?.$date || a.hora || 0).getTime();
+  const tb = new Date( b.createdAt?.$date || b.createdAt || b.hora?.$date || b.hora || 0).getTime();
+
+  return tb - ta;
+});
 
   const ultimaEntrada = entradasUsuarioOrdenadas[0] || null;
 
