@@ -361,15 +361,13 @@ export default function RegistroEmocional({
             return found ? { ...found } : null;
         }
         // Si ya tiene id
-        const emotionId = e.id || e.label;
-
-        if (emotionId) {
-            const found = EMOTIONS.find(x => x.id === emotionId);
+        if (e.id) {
+            const found = EMOTIONS.find(x => x.id === e.id);
             if (found) {
                 return { ...found };
             }
             return {
-                id: String(emotionId).trim(),
+                id: String(e.id).trim(),
                 label: String(e.label || e.id).trim(),
                 emoji: e.emoji || '',
                 tipo: e.tipo || 'neutra',
@@ -736,7 +734,7 @@ export default function RegistroEmocional({
             const fechaPayload = typeof date === 'string' ? date : formatDate(date);
 
             const within7Days = isWithinLast7Days(fechaPayload);
-            const alreadyExists = !!existingEntry && formatDate(existingEntry?.fecha || existingEntry?.date) === formatDate(fechaPayload);
+            const alreadyExists = hasExistingForDate(fechaPayload, existingEntry);
             if (!isEditingToday && alreadyExists && within7Days) {
                 setError('Ya existe un registro para esa fecha. Solo se permite 1 registro por día.');
                 setSaving(false);
@@ -770,14 +768,7 @@ export default function RegistroEmocional({
             carga.userId = String(resolvedUserId);
 
             // Si venimos de edición, forzar registroId desde initial
-            const isTodayRecord =
-                formatDate(fechaPayload) === todayDate();
-
-            if (
-                isTodayRecord &&
-                initial &&
-                (initial.id || initial._id)
-            ) {
+            if (isEditingToday && initial && (initial.id || initial._id)) {
                 const registroId = String(
                     initial.id || initial._id || ''
                 ).trim();
@@ -805,11 +796,7 @@ export default function RegistroEmocional({
                     carga.notaEncrypted = null;
                 }
             }
-            // Los registros anteriores nunca deben actualizarse
-            if (formatDate(fechaPayload) !== todayDate()) {
-                delete carga.id;
-                delete carga._id;
-            }
+
             // Normalizar y sanitizar IDs antes de enviar
             const safeCarga = ensureIdsAreStrings(carga);
 
