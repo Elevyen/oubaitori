@@ -738,7 +738,7 @@ export default function Dashboard() {
         emociones: safePayload.emociones,
         intensidad: safePayload.intensidad,
         etiquetas: safePayload.etiquetas,
-        notanotaEncrypted: safePayload.notaEncrypted,
+        notaEncrypted: safePayload.notaEncrypted,
         meta: { ...(safePayload.meta || {}), source: (safePayload.meta && safePayload.meta.source) || "modal" },
       };
 
