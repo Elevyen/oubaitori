@@ -1190,11 +1190,16 @@ console.log(
   return entryUid === currentUserId;
 });
 console.log("entradasUsuario", entradasUsuario);
-  const entradasUsuarioOrdenadas = [...entradasUsuario].sort((a, b) => {
-  const ta = new Date(a.createdAt?.$date || a.createdAt || a.hora?.$date || a.hora || 0).getTime();
-  const tb = new Date( b.createdAt?.$date || b.createdAt || b.hora?.$date || b.hora || 0).getTime();
+const parseFecha = (fechaStr) => {
+  if (!fechaStr) return 0;
 
-  return tb - ta;
+  const [dd, mm, yyyy] = fechaStr.split("-");
+
+  return new Date(`${yyyy}-${mm}-${dd}`).getTime();
+};
+
+const entradasUsuarioOrdenadas = [...entradasUsuario].sort((a, b) => {
+  return parseFecha(b.fecha) - parseFecha(a.fecha);
 });
 
   const ultimaEntrada = entradasUsuarioOrdenadas[0] || null;
