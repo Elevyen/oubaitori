@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Card from "../components/ui/Card.jsx";
 import "../styles/admin.css";
-
+import { formatDateTime } from "../utils/date";
 const API_BASE =
     (typeof import.meta !== "undefined" &&
         import.meta.env &&
@@ -485,7 +485,7 @@ export default function PerfilAdmin() {
         const toggling = togglingId === m._id;
         return (
             <tr key={m._id} className={isResolved ? "row-resolved" : ""}>
-                <td style={{ whiteSpace: "nowrap" }}>{new Date(m.createdAt).toLocaleString()}</td>
+                <td style={{ whiteSpace: "nowrap" }}>{formatDateTime(m.createdAt)}</td>
                 <td>{m.tipo}</td>
                 <td>{m.titulo}</td>
                 <td style={{ maxWidth: 300, overflow: "hidden", textOverflow: "ellipsis" }}>{m.mensaje}</td>

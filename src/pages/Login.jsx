@@ -1,7 +1,7 @@
 import { useContext, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { AuthContext } from "../context/AuthContext";
-
+import { todayISODate } from "../utils/date";
 const API_BASE =
     (typeof import.meta !== "undefined" &&
         import.meta.env &&
@@ -37,16 +37,6 @@ export default function Login() {
             return { ok: false, exists: false };
         }
     }
-
-    // Helper: formato fecha YYYY-MM-DD
-    const formatLocalDateYYYYMMDD = (d = new Date()) => {
-        try {
-            return new Date(d).toISOString().slice(0, 10);
-        } catch (e) {
-            return String(d).slice(0, 10);
-        }
-    };
-
     // Maneja el submit del formulario
     const onSubmit = async (event) => {
         event.preventDefault();
@@ -212,7 +202,7 @@ export default function Login() {
                 (async () => {
                     try {
                         const fechaToCheck =
-                            (lastAnalisisLocal && lastAnalisisLocal.fechaClave) || formatLocalDateYYYYMMDD();
+                            (lastAnalisisLocal && lastAnalisisLocal.fechaClave) || todayISODate();
                         const resp = await fetch(
                             `${API_BASE}/api/AnalisisDiario/fecha/${encodeURIComponent(fechaToCheck)}`,
                             {
