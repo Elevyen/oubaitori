@@ -6,6 +6,7 @@ import RegistroEmocional from "../components/RegistroEmocional";
 import Card from "../components/ui/Card.jsx";
 import { AuthContext } from "../context/AuthContext";
 import "../styles/dashboard.css";
+import { formatDate, isWithinLast7Days, todayDate } from "../utils/date";
 
 const RECOMENDACIONES = [
   "Recuerda hidratarte, toma un sorbo de agua.",
@@ -188,7 +189,7 @@ export default function Dashboard() {
     const id = safe._id || safe.id || safe.registroId || null;
     const _id = safe._id || (safe.id ? String(safe.id) : null);
 
-    const fecha = safe.fecha || safe.date || (safe.createdAt && safe.createdAt.slice(0, 10)) || null;
+    const fecha = formatDate(safe.fecha || safe.date || safe.createdAt || null);
     const hora = safe.hora || safe.time || safe.createdAt || null;
     const nota = safe.nota || null;
 
@@ -259,13 +260,13 @@ export default function Dashboard() {
     const byKey = new Map();
     (sArr || []).forEach((r) => {
       const id = r._id || r.id || null;
-      const fecha = r.fecha || r.date || (r.createdAt && r.createdAt.slice(0, 10)) || null;
+      const fecha = formatDate(r.fecha || r.date || r.createdAt || null);
       const key = id ? `id:${id}` : `d:${fecha}`;
       byKey.set(key, r);
     });
     (cArr || []).forEach((r) => {
       const id = r._id || r.id || null;
-      const fecha = r.fecha || r.date || (r.createdAt && r.createdAt.slice(0, 10)) || null;
+      const fecha = formatDate(r.fecha || r.date || r.createdAt || null);
       const key = id ? `id:${id}` : `d:${fecha}`;
       if (!byKey.has(key)) byKey.set(key, r);
     });
@@ -289,12 +290,7 @@ export default function Dashboard() {
         .map((e) => {
           if (!e) return null;
           if (!e.fecha) {
-            const created = e.createdAt || e.hora || e.time || null;
-            if (created) {
-              try {
-                e.fecha = String(created).slice(0, 10);
-              } catch { }
-            }
+            e.fecha = formatDate(e.createdAt || e.hora || e.time);
           }
           return e;
         })
@@ -309,7 +305,7 @@ export default function Dashboard() {
             const created = e.createdAt || e.hora || e.time || null;
             if (created) {
               try {
-                e.fecha = String(created).slice(0, 10);
+                e.fecha = formatDate(e.createdAt || e.hora || e.time);
               } catch { }
             }
           }
@@ -332,7 +328,7 @@ export default function Dashboard() {
             const created = e.createdAt || e.hora || e.time || null;
             if (created) {
               try {
-                e.fecha = String(created).slice(0, 10);
+                e.fecha = formatDate(e.createdAt || e.hora || e.time);
               } catch { }
             }
           }
@@ -470,19 +466,11 @@ export default function Dashboard() {
     }
   };
 
-  // Normaliza a YYYY-MM-DD y acepta strings
-  const formatDateKey = (d) => {
-    if (!d) return "";
-    if (typeof d === "string" && /^\d{4}-\d{2}-\d{2}$/.test(d)) return d;
-    const dt = new Date(d);
-    if (isNaN(dt)) return String(d);
-    return dt.toLocaleDateString('sv-SE', { timeZone: 'Europe/Madrid' });
-  };
 
   //normaliza fechas a YYYY-MM-DD y compara
   const findEntryForDate = (fechaYYYYMMDD) => {
     if (!fechaYYYYMMDD) return null;
-    const targetKey = formatDateKey(fechaYYYYMMDD);
+    const targetKey = formatDate(fechaYYYYMMDD);
     const uid = String(user?._id || storedUser?._id || user?.id || storedUser?.id || "").trim();
     const email = (user?.email || storedUser?.email || "")?.toLowerCase() || null;
 
@@ -491,11 +479,13 @@ export default function Dashboard() {
       const candidates = [
         entry.fecha,
         entry.date,
-        entry.createdAt && String(entry.createdAt).slice(0, 10),
-        entry.hora && String(entry.hora).slice(0, 10),
-        entry.time && String(entry.time).slice(0, 10)
-      ].filter(Boolean).map(String);
-      return candidates.some(c => formatDateKey(c) === targetKey || String(c).startsWith(targetKey));
+        entry.createdAt,
+        entry.hora,
+        entry.time
+      ]
+        .filter(Boolean)
+        .map(formatDate);
+      return candidates.some(c => c === targetKey);
     };
 
     const entryMatchesOwner = (entry) => {
@@ -574,26 +564,16 @@ export default function Dashboard() {
     return total;
   };
 
-  const isWithinLastNDays = (fechaYYYYMMDD, n) => {
-    if (!fechaYYYYMMDD) return false;
-    const today = new Date();
-    const target = new Date(fechaYYYYMMDD + "T00:00:00");
-    const diffMs = today.setHours(0, 0, 0, 0) - target.setHours(0, 0, 0, 0);
-    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-    return diffDays >= 0 && diffDays <= n;
-  };
-
   const handleDayClick = async (dateString) => {
-    const todayKey = new Date().toLocaleDateString('sv-SE', { timeZone: 'Europe/Madrid' });
+    const todayKey = todayDate();
     if (dateString > todayKey) {
       setMensajeGuia("No puedes registrar en una fecha futura.");
       return;
     }
 
-    const daysBackAllowed = 6;
-    const within = isWithinLastNDays(dateString, daysBackAllowed);
+    const within = isWithinLast7Days(dateString);
     if (!within) {
-      setMensajeGuia(`Solo puedes registrar hasta ${daysBackAllowed} días atrás.`);
+      setMensajeGuia("Solo puedes registrar dentro de los últimos 7 días.");
       return;
     }
 
@@ -640,30 +620,21 @@ export default function Dashboard() {
       console.debug('handleDayClick - no local entry found, fetching month to confirm', dateString);
       try {
         let month;
+
         try {
-          if (/^\d{4}-\d{2}-\d{2}$/.test(String(dateString))) {
-            const d = new Date(String(dateString) + "T00:00:00");
-            const parts = d.toLocaleDateString('sv-SE', { timeZone: 'Europe/Madrid' }).split('-');
-            const yyyy = parts[0];
-            const mm = parts[1];
-            month = `${mm}-${yyyy}`; // MM-YYYY
-          } else {
-            const d = new Date(dateString);
-            if (isNaN(d.getTime())) throw new Error('invalid_date');
-            const parts = d.toLocaleDateString('sv-SE', { timeZone: 'Europe/Madrid' }).split('-');
-            const yyyy = parts[0];
-            const mm = parts[1];
-            month = `${mm}-${yyyy}`;
-          }
+          const [dd, mm, yyyy] = formatDate(dateString).split("-");
+          month = `${mm}-${yyyy}`;
         } catch (e) {
-          // En caso de fallo, usar el mes actualmente seleccionado como fallback
           month = mesSeleccionado;
         }
         const remoteList = await loadEntriesByMonth(month);
         console.debug('handleDayClick - remoteList length', Array.isArray(remoteList) ? remoteList.length : 0);
         const foundRemote = (remoteList || []).find(r => {
-          const rFecha = r && (r.fecha || r.date || (r.createdAt && String(r.createdAt).slice(0, 10)));
-          return rFecha && String(rFecha).startsWith(String(dateString));
+          const rFecha = formatDate(
+            r?.fecha || r?.date || r?.createdAt
+          );
+
+          return rFecha === formatDate(dateString);
         });
         if (foundRemote) {
           const registro = normalizeRegistro(foundRemote);
@@ -701,8 +672,8 @@ export default function Dashboard() {
     const safePayload = ensureIdsAreStrings(payload);
     const providedId = safePayload && (safePayload.id || safePayload._id) ? (safePayload.id || safePayload._id) : null;
 
-    // Normalizar fecha a YYYY-MM-DD
-    const fechaNormalized = safePayload && safePayload.fecha ? String(safePayload.fecha).slice(0, 10) : null;
+    // Normalizar fecha a DD-MM-YYYY
+    const fechaNormalized = formatDate(safePayload?.fecha);
     if (fechaNormalized) safePayload.fecha = fechaNormalized;
 
 
@@ -854,7 +825,7 @@ export default function Dashboard() {
     for (let i = 0; i < n; i++) {
       const d = new Date(today);
       d.setDate(today.getDate() - i);
-      out.push(d.toLocaleDateString('sv-SE', { timeZone: 'Europe/Madrid' }));
+      out.push(formatDate(d));
     }
     return out;
   }
@@ -938,7 +909,7 @@ export default function Dashboard() {
       if (!r || typeof r !== "object") return null;
       const created = r.createdAt || r.hora || r.time || null;
       const fechaRaw = r.fecha || r.date || (created ? String(created).slice(0, 10) : null);
-      const fecha = fechaRaw ? String(fechaRaw).slice(0, 10) : null;
+      const fecha = formatDate(fechaRaw);
       const emociones = Array.isArray(r.emociones) ? r.emociones : (Array.isArray(r.emotions) ? r.emotions : []);
       const intensidad = r.intensidad ?? r.intensity ?? (typeof r.int === "number" ? r.int : null);
       const nota = r.nota || null;
@@ -1164,8 +1135,8 @@ export default function Dashboard() {
 
   const ultimaEntrada = (() => {
     const arr = [...entradasUsuario].sort((a, b) => {
-      const ta = new Date(a.createdAt || a.fecha || 0).getTime();
-      const tb = new Date(b.createdAt || b.fecha || 0).getTime();
+      const ta = new Date((a.createdAt || "").replace(" ", "T"))
+      const tb = new Date((b.createdAt || "").replace(" ", "T"))
       return tb - ta;
     });
     return arr[0] || null;
@@ -1177,10 +1148,10 @@ export default function Dashboard() {
       let savedRegistro = null;
 
       const payloadCopy = { ...(savedOrPayload || {}) };
-      const fecha = payloadCopy.fecha || new Date().toLocaleDateString('sv-SE', { timeZone: 'Europe/Madrid' });
+      const fecha = payloadCopy.fecha || todayDate();
       if (!isServerSaved && fecha) {
         const existingForDate = findEntryForDate(fecha);
-        if (existingForDate && (existingForDate.id || existingForDate._id) && fecha === new Date().toLocaleDateString('sv-SE', { timeZone: 'Europe/Madrid' })) {
+        if (existingForDate && (existingForDate.id || existingForDate._id) && fecha === todayDate()) {
           payloadCopy.id = existingForDate.id || existingForDate._id;
         }
       }
@@ -1240,15 +1211,10 @@ export default function Dashboard() {
 
   async function checkIfAnalysisComplete() {
     if (!token) return false;
-    const todayKey = new Date().toLocaleDateString('sv-SE', { timeZone: 'Europe/Madrid' });
+    const todayKey = todayDate();
     const exists = await checkAnalisisExists(todayKey);
     setAnalysisComplete(exists);
     return exists;
-  }
-
-  function formatLocalDateYYYYMMDD(d = new Date()) {
-    const dt = new Date(d);
-    return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`;
   }
 
   const realizarAnalisisManual = async ({ persist = true } = {}) => {
@@ -1269,7 +1235,7 @@ export default function Dashboard() {
 
       if (!res.ok) {
         if (res.status === 409 || json?.message === "analisis_duplicado") {
-          const fechaToCheck = formatLocalDateYYYYMMDD();
+          const fechaToCheck = todayDate();
           const existing = await fetchAnalisisByDate(fechaToCheck);
           if (existing) {
             setAnalysisSummary(existing.summary || existing || null);
@@ -1424,7 +1390,7 @@ export default function Dashboard() {
                     <p>{analysisComplete ? "El análisis para este periodo ya se ha realizado." : mensajeGuia}</p>
                   </div>
                   <div style={{ display: "flex", gap: "10px" }}>
-                    <button className="rpg-button" onClick={() => handleDayClick(new Date().toLocaleDateString('sv-SE', { timeZone: 'Europe/Madrid' }))}>
+                    <button className="rpg-button" onClick={() => handleDayClick(todayDate())}>
                       Registrar hoy
                     </button>
                     <button

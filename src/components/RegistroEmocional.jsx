@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import '../styles/modal.css';
+import { formatDate, isWithinLast7Days, spainTime, todayDate } from '../utils/date';
 
 const EMOTIONS = [
     { id: 'alegria', label: 'Alegría', emoji: '😊', tipo: 'buena', color: '#F2D94E', textColor: '#111111' },
@@ -84,36 +85,6 @@ const EMOTIONS = [
     { id: 'ligereza', label: 'Ligereza', emoji: '✨️', tipo: 'buena', color: '#FFF8E1', textColor: '#111111' },
     { id: 'hormigueo', label: 'Hormigueo', emoji: '🫢', tipo: 'neutra', color: '#FFE0B2', textColor: '#111111' }
 ];
-
-// Formato de fecha -> "DD-MM-YYYY"
-function formatDateDDMMYYYY(d) {
-    if (!d) return '';
-    if (typeof d === 'string') {
-        if (/^\d{2}-\d{2}-\d{4}$/.test(d)) return d;
-        if (/^\d{8}$/.test(d)) return `${d.slice(0, 2)}-${d.slice(2, 4)}-${d.slice(4, 8)}`;
-        if (/^\d{4}-\d{2}-\d{2}$/.test(d)) {
-            const [yyyy, mm, dd] = d.split('-');
-            return `${dd}-${mm}-${yyyy}`;
-        }
-    }
-    const dt = (d instanceof Date) ? d : new Date(d);
-    if (dt instanceof Date && !isNaN(dt)) {
-        const dd = String(dt.getDate()).padStart(2, '0');
-        const mm = String(dt.getMonth() + 1).padStart(2, '0');
-        const yyyy = String(dt.getFullYear());
-        return `${dd}-${mm}-${yyyy}`;
-    }
-    const m = String(d).match(/(\d{2})[^\d]?(\d{2})[^\d]?(\d{4})/);
-    if (m) return `${m[1]}-${m[2]}-${m[3]}`;
-    return String(d);
-}
-
-// Devuelve "DDMMYYYY" (clave interna)
-function formatDateKey(d) {
-    const s = formatDateDDMMYYYY(d);
-    if (!s) return '';
-    return String(s).replace(/-/g, '');
-}
 
 // Encriptado helpers
 function base64ToArrayBuffer(base64) {
@@ -331,7 +302,7 @@ function clearLocalRecordCacheForDateOrId({ id, fecha }) {
     try {
         const raw = localStorage.getItem('pendingRegistros');
         const pendientes = raw ? JSON.parse(raw) : [];
-        const nuevos = pendientes.filter(p => String(p.id || p._id) !== String(id) && formatDateKey(p.fecha) !== formatDateKey(fecha));
+        const nuevos = pendientes.filter(p => String(p.id || p._id) !== String(id) && formatDate(p.fecha) !== formatDate(fecha));
         localStorage.setItem('pendingRegistros', JSON.stringify(nuevos));
     } catch (e) {
         console.warn('clearLocalRecordCacheForDateOrId pending error', e);
@@ -349,20 +320,20 @@ function clearLocalRecordCacheForDateOrId({ id, fecha }) {
 }
 
 function hasExistingForDate(dateString, existingEntryProp) {
-    const keyDate = formatDateKey(dateString);
+    const keyDate = formatDate(dateString);
     if (!keyDate) return false;
     if (existingEntryProp) return true;
 
     try {
         const rawPend = localStorage.getItem('pendingRegistros');
         const pendientes = rawPend ? JSON.parse(rawPend) : [];
-        if (Array.isArray(pendientes) && pendientes.find(p => formatDateKey(p.fecha) === keyDate)) return true;
+        if (Array.isArray(pendientes) && pendientes.find(p => formatDate(p.fecha) === keyDate)) return true;
     } catch (e) { }
 
     try {
         const rawCache = localStorage.getItem('entradasCache_v1');
         const cache = rawCache ? JSON.parse(rawCache) : [];
-        if (Array.isArray(cache) && cache.find(r => formatDateKey(r.fecha) === keyDate)) return true;
+        if (Array.isArray(cache) && cache.find(r => formatDate(r.fecha) === keyDate)) return true;
     } catch (e) { }
 
     return false;
@@ -488,11 +459,11 @@ export default function RegistroEmocional({
 
     const isEditingToday = useMemo(() => {
         try {
-            if (!initial || !initial.id) return false;
+            if (!initial || !(initial.id || initial._id)) return false;
             const initialFecha = initial.fecha || initial.date || null;
             if (!initialFecha) return false;
-            const todayKey = formatDateDDMMYYYY(new Date());
-            return formatDateDDMMYYYY(initialFecha) === todayKey;
+            const todayKey = todayDate();
+            return formatDate(initialFecha) === todayKey;
         } catch {
             return false;
         }
@@ -502,9 +473,7 @@ export default function RegistroEmocional({
         if (!open) return;
         const idToLoad = initial && (initial.id || initial._id) ? (initial.id || initial._id) : null;
         if (!idToLoad) return;
-        const sameDate =
-            formatDateKey(initial?.fecha) === formatDateKey(date);
-
+        const sameDate = formatDate(initial?.fecha) === formatDate(date)
         if (
             loadedRegistroId === idToLoad &&
             sameDate
@@ -645,7 +614,7 @@ export default function RegistroEmocional({
             } else {
                 // Si no hay initial pero puede existir registro para la fecha, intenta cargarlo
                 (async () => {
-                    const fechaKey = formatDateDDMMYYYY(date);
+                    const fechaKey = formatDate(date);
                     const existing = hasExistingForDate(fechaKey, existingEntry);
                     if (existing) {
                         // intentr recuperar registro por fecha y rellenar modal
@@ -712,22 +681,6 @@ export default function RegistroEmocional({
         setTagsText(joinTags(parts));
     };
 
-    function isWithinLastNDays(dateString, n) {
-        try {
-            const key = formatDateKey(dateString);
-            if (!key || key.length !== 8) return false;
-            const target = new Date(`${key.slice(4, 8)}-${key.slice(2, 4)}-${key.slice(0, 2)}`);
-            if (isNaN(target)) return false;
-            const today = new Date();
-            target.setHours(0, 0, 0, 0);
-            today.setHours(0, 0, 0, 0);
-            const diffDays = Math.floor((today - target) / (1000 * 60 * 60 * 24));
-            return diffDays >= 0 && diffDays <= n;
-        } catch {
-            return false;
-        }
-    }
-
     // Encriptar nota en cliente usando notaKeyBase64
     async function encryptNotaOrThrow(plain) {
         if (!plain) return null;
@@ -759,11 +712,11 @@ export default function RegistroEmocional({
                 throw err;
             }
 
-            const fechaPayload = formatDateDDMMYYYY(date);
+            const fechaPayload = formatDate(date);
 
-            const within6Days = isWithinLastNDays(fechaPayload, 6);
+            const within7Days = isWithinLast7Days(fechaPayload);
             const alreadyExists = hasExistingForDate(fechaPayload, existingEntry);
-            if (!isEditingToday && alreadyExists && within6Days) {
+            if (!isEditingToday && alreadyExists && within7Days) {
                 setError('Ya existe un registro para esa fecha. Solo se permite 1 registro por día.');
                 setSaving(false);
                 return;
@@ -783,7 +736,7 @@ export default function RegistroEmocional({
             // Construcción de carga base
             const carga = {
                 fecha: fechaPayload,
-                hora: new Date().toISOString(),
+                hora: spainTime(),
                 emociones,
                 intensidad: intensidadNum,
                 etiquetas: tagsText ? tagsText.split(',').map(t => t.trim()).filter(Boolean) : [],
@@ -867,10 +820,10 @@ export default function RegistroEmocional({
                 guardado = await guardarRegistro(safeCarga, { token });
             } catch (errSave) {
                 // Si backend devuelve 409 con detalle y isToday true, reintentar PUT
-                if (errSave && errSave.code === 'Límite día' || errSave && errSave.message && errSave.message.toLowerCase().includes('ya existe')) {
+                if ((errSave && errSave.code === 'Límite día') ||(errSave && errSave.message && errSave.message.toLowerCase().includes('ya existe'))) {
                     // fallback: llamar a la API para obtener registro por fecha y usar su id
                     try {
-                        const fechaPayload = formatDateDDMMYYYY(date);
+                        const fechaPayload = formatDate(date);
                         const resp = await fetch(`${apiBase}/api/registros/fecha/${fechaPayload}`, {
                             headers: { Authorization: `Bearer ${token}` }
                         });
@@ -902,7 +855,7 @@ export default function RegistroEmocional({
                     const pendientes = raw ? JSON.parse(raw) : [];
 
                     const pending = { ...safeCarga };
-                    pending.fecha = formatDateDDMMYYYY(pending.fecha);
+                    pending.fecha = formatDate(pending.fecha);
                     if (!pending.id) pending.id = generateClientId();
                     // Si notaEncrypted es undefined, no incluirla para evitar sobrescribir en servidor
                     if (typeof pending.notaEncrypted === 'undefined') delete pending.notaEncrypted;
@@ -923,7 +876,7 @@ export default function RegistroEmocional({
             console.error('error guardando registro', err);
             if (err && (err.code === 'No encontrado' || String(err.message).toLowerCase().includes('no encontrado') || String(err.message).toLowerCase().includes('not found'))) {
                 try {
-                    clearLocalRecordCacheForDateOrId({ id: initial && (initial.id || initial._id), fecha: formatDateDDMMYYYY(date) });
+                    clearLocalRecordCacheForDateOrId({ id: initial && (initial.id || initial._id), fecha: formatDate(date) });
                 } catch (e) { }
             }
 
@@ -955,11 +908,7 @@ export default function RegistroEmocional({
         e.label.toLowerCase().includes(filter.trim().toLowerCase())
     );
 
-    const formattedDate = (() => {
-        const f = formatDateDDMMYYYY(date);
-        if (f && /^\d{2}-\d{2}-\d{4}$/.test(f)) return f;
-        return String(date || '');
-    })();
+    const formattedDate = formatDate(date);
 
     return (
         <div className="modal-overlay" role="dialog" aria-modal="true" aria-label="Formulario de emoción">
