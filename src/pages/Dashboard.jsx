@@ -468,62 +468,104 @@ export default function Dashboard() {
 
   //normaliza fechas a YYYY-MM-DD y compara
   const findEntryForDate = (fechaYYYYMMDD) => {
-    if (!fechaYYYYMMDD) return null;
-    const targetKey = formatDate(fechaYYYYMMDD);
-    const uid = String(user?._id || storedUser?._id || user?.id || storedUser?.id || "").trim();
-    const email = (user?.email || storedUser?.email || "")?.toLowerCase() || null;
+  if (!fechaYYYYMMDD) return null;
 
-    const entryMatchesDate = (entry) => {
-      if (!entry) return false;
-      const candidates = [
-        entry.fecha,
-        entry.date,
-        entry.createdAt,
-        entry.hora,
-        entry.time
-      ]
-        .filter(Boolean)
-        .map(formatDate);
-      return candidates.some(c => c === targetKey);
-    };
+  const targetKey = formatDate(fechaYYYYMMDD);
 
-    const entryMatchesOwner = (entry) => {
-      const entryUid = String(entry.usuarioId || entry.userId || entry.usuario?._id || entry.usuario?.id || entry.user?._id || entry.user?.id || "").trim();
-      if (entryUid && uid && entryUid === uid) return true;
-      const entryEmail = (entry.usuario?.email || entry.user?.email || entry.email || "").toLowerCase();
-      if (entryEmail && email && entryEmail === email) return true;
-      return false;
-    };
+  const uid = String(
+    user?._id ||
+    storedUser?._id ||
+    user?.id ||
+    storedUser?.id ||
+    ""
+  ).trim();
 
-    const searchList = (list) => {
-      if (!Array.isArray(list)) return null;
-      for (const e of list) {
-        if (!e) continue;
-        if (entryMatchesDate(e) && entryMatchesOwner(e)) return e;
+  const email = (
+    user?.email ||
+    storedUser?.email ||
+    ""
+  ).toLowerCase() || null;
+
+  const entryMatchesDate = (entry) => {
+    if (!entry) return false;
+
+    const candidates = [
+      entry.fecha,
+      entry.date
+    ]
+      .filter(Boolean)
+      .map(formatDate);
+
+    return candidates.some((c) => c === targetKey);
+  };
+
+  const entryMatchesOwner = (entry) => {
+    const entryUid = String(
+      entry.usuarioId ||
+      entry.userId ||
+      entry.usuario?._id ||
+      entry.usuario?.id ||
+      entry.user?._id ||
+      entry.user?.id ||
+      ""
+    ).trim();
+
+    if (entryUid && uid && entryUid === uid) return true;
+
+    const entryEmail = (
+      entry.usuario?.email ||
+      entry.user?.email ||
+      entry.email ||
+      ""
+    ).toLowerCase();
+
+    if (entryEmail && email && entryEmail === email) return true;
+
+    return false;
+  };
+
+  const searchList = (list) => {
+    if (!Array.isArray(list)) return null;
+
+    for (const e of list) {
+      if (!e) continue;
+
+      if (entryMatchesDate(e) && entryMatchesOwner(e)) {
+        return e;
       }
-      return null;
-    };
-
-    // buscar en entradas cargadas en memoria
-    const foundInEntradas = searchList(entradas);
-    if (foundInEntradas) return foundInEntradas;
-
-    // buscar en cache local filtrada por usuario
-    const cache = loadEntradasCache({ userId: uid || null, userEmail: email || null });
-    const foundInCache = searchList(cache);
-    if (foundInCache) return foundInCache;
-
-    // buscar en pendientes (localStorage)
-    try {
-      const raw = localStorage.getItem("pendingRegistros");
-      const pendientes = raw ? JSON.parse(raw) : [];
-      const normalizedPendientes = (pendientes || []).map(ensureIdsAreStrings);
-      const foundInPendientes = searchList(normalizedPendientes);
-      if (foundInPendientes) return foundInPendientes;
-    } catch (e) { }
+    }
 
     return null;
   };
+
+  const foundInEntradas = searchList(entradas);
+
+  if (foundInEntradas) return foundInEntradas;
+
+  const cache = loadEntradasCache({
+    userId: uid || null,
+    userEmail: email || null
+  });
+
+  const foundInCache = searchList(cache);
+
+  if (foundInCache) return foundInCache;
+
+  try {
+    const raw = localStorage.getItem("pendingRegistros");
+
+    const pendientes = raw ? JSON.parse(raw) : [];
+
+    const normalizedPendientes = (pendientes || [])
+      .map(ensureIdsAreStrings);
+
+    const foundInPendientes = searchList(normalizedPendientes);
+
+    if (foundInPendientes) return foundInPendientes;
+  } catch (e) {}
+
+  return null;
+};
 
   const contarRegistrosDelDia = (fechaDDMMYYYY) => {
     if (!fechaDDMMYYYY) return 0;

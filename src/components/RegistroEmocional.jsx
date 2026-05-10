@@ -354,23 +354,23 @@ export default function RegistroEmocional({
     notaKeyBase64
 }) {
     const normalizeEmotion = (e) => {
-    if (!e || !e.id || !e.label) return null;
+        if (!e || !e.id || !e.label) return null;
 
-    const ref = EMOTIONS.find(x => x.id === e.id);
+        const ref = EMOTIONS.find(x => x.id === e.id);
 
-    if (ref) {
-        return { ...ref };
-    }
+        if (ref) {
+            return { ...ref };
+        }
 
-    return {
-        id: String(e.id).trim(),
-        label: String(e.label).trim(),
-        emoji: e.emoji || '',
-        tipo: e.tipo || 'neutra',
-        color: e.color || '',
-        textColor: e.textColor || ''
+        return {
+            id: String(e.id).trim(),
+            label: String(e.label).trim(),
+            emoji: e.emoji || '',
+            tipo: e.tipo || 'neutra',
+            color: e.color || '',
+            textColor: e.textColor || ''
+        };
     };
-};
 
     const [emoji, setEmoji] = useState(initial.emoji || '');
     const [intensity, setIntensity] = useState(initial.intensity ?? 5);
@@ -561,7 +561,15 @@ export default function RegistroEmocional({
     }, [date, open]);
 
     async function loadRegistroByDate(fechaDD) {
+        // LIMPIAR ESTADO ANTES DE CARGAR
+        setLoadedRegistroId(null);
+        setNota('');
+        setSelectedEmotions([]);
+        setIntensity(5);
+        setTagsText('');
+
         if (!fechaDD) return null;
+
         setLoadingRegistro(true);
         try {
             const resp = await fetch(`${apiBase}/api/registros/fecha/${encodeURIComponent(fechaDD)}`, {
@@ -619,7 +627,7 @@ export default function RegistroEmocional({
             } else {
                 // Si no hay initial pero puede existir registro para la fecha, intenta cargarlo
                 (async () => {
-                    const fechaKey = formatDate(date);
+                    const fechaKey =typeof date === 'string'? date: formatDate(date);
                     const existing = hasExistingForDate(fechaKey, existingEntry);
                     if (existing) {
                         // intentr recuperar registro por fecha y rellenar modal
@@ -717,7 +725,7 @@ export default function RegistroEmocional({
                 throw err;
             }
 
-            const fechaPayload = formatDate(date);
+            const fechaPayload =typeof date === 'string' ? date: formatDate(date);
 
             const within7Days = isWithinLast7Days(fechaPayload);
             const alreadyExists = hasExistingForDate(fechaPayload, existingEntry);
@@ -824,7 +832,7 @@ export default function RegistroEmocional({
                 guardado = await guardarRegistro(safeCarga, { token });
             } catch (errSave) {
                 // Si backend devuelve 409 con detalle y isToday true, reintentar PUT
-                if ((errSave && errSave.code === 'Límite día') ||(errSave && errSave.message && errSave.message.toLowerCase().includes('ya existe'))) {
+                if ((errSave && errSave.code === 'Límite día') || (errSave && errSave.message && errSave.message.toLowerCase().includes('ya existe'))) {
                     // fallback: llamar a la API para obtener registro por fecha y usar su id
                     try {
                         const fechaPayload = formatDate(date);
