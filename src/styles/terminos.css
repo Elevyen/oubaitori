@@ -1,0 +1,102 @@
+.terms-page {
+  padding: 1.25rem;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  width: 100%;
+  box-sizing: border-box;
+  min-height: calc(100vh - 120px);
+}
+
+.terms-card {
+  width: 100%;
+  max-width: 980px;
+  padding: 1.25rem;
+  box-sizing: border-box;
+  border-radius: 12px;
+  background: var(--card-bg, #fff);
+  color: var(--color-text, #111);
+  box-shadow: 0 6px 18px rgba(0,0,0,0.06);
+}
+
+.terms-card-header h1 {
+  margin: 0;
+  font-size: 1.25rem;
+  color: var(--color-accent, #6b46c1);
+  line-height: 1.2;
+}
+
+.terms-content {
+  margin-top: 0.75rem;
+  display: grid;
+  gap: 1rem;
+  font-size: 0.98rem;
+  line-height: 1.5;
+  color: var(--color-text, #111);
+}
+
+.terms-content h2 {
+  margin: 0 0 0.35rem 0;
+  font-size: 1rem;
+  color: var(--color-accent, #6b46c1);
+}
+
+.terms-content p {
+  margin: 0 0 0.5rem 0;
+  color: var(--color-text, #222);
+}
+
+.terms-content ul {
+  margin: 0.25rem 0 0.5rem 1.25rem;
+  color: var(--color-text, #222);
+}
+
+.terms-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  margin-top: 1.25rem;
+  border-top: 1px solid rgba(0,0,0,0.04);
+  padding-top: 0.75rem;
+}
+
+.terms-footer-meta small {
+  color: var(--color-muted, #666);
+}
+
+.btn-back {
+  background: linear-gradient(180deg, var(--color-accent, #6b46c1), color-mix(in srgb, var(--color-accent, #6b46c1) 85%));
+  color: var(--color-on-accent, #fff);
+  border: none;
+  padding: 0.5rem 0.9rem;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 120ms ease, box-shadow 120ms ease;
+  box-shadow: 0 6px 14px rgba(0,0,0,0.08);
+}
+
+.btn-back:focus {
+  outline: 3px solid color-mix(in srgb, var(--color-accent, #6b46c1) 30%, white);
+  outline-offset: 2px;
+}
+
+.btn-back:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 22px rgba(0,0,0,0.10);
+}
+
+@media (max-width: 640px) {
+  .terms-card {
+    padding: 1rem;
+    border-radius: 10px;
+  }
+  .terms-content {
+    gap: 0.75rem;
+    font-size: 0.96rem;
+  }
+  .btn-back {
+    padding: 0.45rem 0.75rem;
+  }
+}

@@ -7,6 +7,7 @@ import PerfilAdmin from "../pages/PerfilAdmin";
 import PerfilUsuario from "../pages/PerfilUsuario";
 import RegistroUsuario from "../pages/RegistroUsuario";
 import SelectPartner from "../pages/SelectPartner";
+import Terminos from "../pages/Terminos";
 
 export default function AppRouter({ apiBase = '', token = null, user = null }) {
     return (
@@ -20,6 +21,7 @@ export default function AppRouter({ apiBase = '', token = null, user = null }) {
                     <Route path="/perfilAdmin" element={<PerfilAdmin apiBase={apiBase} token={token} user={user} />} />
                     <Route path="/perfilUsuario" element={<PerfilUsuario apiBase={apiBase} token={token} user={user} />} />
                     <Route path="/contacto" element={<Contacto apiBase={apiBase} token={token} user={user} />}/>
+                    <Route path="/terminos" element={<Terminos apiBase={apiBase} token={token} user={user} />}/>
                     <Route path="/guiaUsuario" element={<GuiaUsuario apiBase={apiBase} token={token} user={user} />}/>
                 </Routes>
             </main>
