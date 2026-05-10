@@ -105,7 +105,7 @@ async function importAesKeyFromBase64(base64Key) {
     if (!(raw && raw.byteLength === 32)) {
         throw new Error('invalid_key_length');
     }
-    return await crypto.subtle.importKey('raw', raw, 'AES-GCM', false, ['encrypt', 'decrypt']);
+    return await crypto.subtle.importKey('raw', raw, 'AES-GCM', false, ['encrypt']);
 }
 async function encryptAesGcmBase64BackendFormat(plainText, base64Key) {
     if (!plainText) return null;
@@ -124,36 +124,6 @@ async function encryptAesGcmBase64BackendFormat(plainText, base64Key) {
     combined.set(tag, iv.byteLength);
     combined.set(ciphertext, iv.byteLength + tag.byteLength);
     return arrayBufferToBase64(combined.buffer);
-}
-async function decryptAesGcmBase64BackendFormat(cipherBase64, base64Key) {
-    if (!cipherBase64) return '';
-
-    const combinedBuffer = base64ToArrayBuffer(cipherBase64);
-    const combined = new Uint8Array(combinedBuffer);
-
-    const iv = combined.slice(0, 12);
-    const tag = combined.slice(12, 28);
-    const ciphertext = combined.slice(28);
-
-    const encryptedData = new Uint8Array(
-        ciphertext.length + tag.length
-    );
-
-    encryptedData.set(ciphertext, 0);
-    encryptedData.set(tag, ciphertext.length);
-
-    const key = await importAesKeyFromBase64(base64Key);
-
-    const plainBuffer = await crypto.subtle.decrypt(
-        {
-            name: 'AES-GCM',
-            iv
-        },
-        key,
-        encryptedData
-    );
-
-    return new TextDecoder().decode(plainBuffer);
 }
 // Asegura que ID es string (no elimina campos)
 function ensureIdsAreStrings(obj) {
@@ -469,13 +439,7 @@ export default function RegistroEmocional({
             setEmoji(initial.emoji || '');
             setIntensity(initial.intensity ?? 5);
             setTagsText((initial.tags || initial.etiquetas || []).join(', '));
-            (async () => {
-                const notaDescifrada = await decryptNotaSafe(
-                    initial.nota || initial.notaEncrypted
-                );
-
-                setNota(notaDescifrada);
-            })();
+            setNota(initial?.nota || '');
             const normalized = (initial.selectedEmotions || initial.emociones || []).map(normalizeEmotion).filter(Boolean);
             setSelectedEmotions(normalized);
         } else {
@@ -555,13 +519,7 @@ export default function RegistroEmocional({
                 setLoadedRegistroId(idToLoad);
 
                 if (registro.nota !== undefined && registro.nota !== null) {
-                    (async () => {
-                        const notaDescifrada = await decryptNotaSafe(
-                            registro.nota || registro.notaEncrypted
-                        );
-
-                        setNota(notaDescifrada);
-                    })();
+                    setNota(registro?.nota || '');
                 } else {
                     setNota('');
                 }
@@ -640,13 +598,7 @@ export default function RegistroEmocional({
             const registro = body.registro;
             // asigna estado con todo el registro (nota ya desencriptada por backend si eres owner)
             setLoadedRegistroId(registro.id || registro._id || null);
-            (async () => {
-                const notaDescifrada = await decryptNotaSafe(
-                    registro.nota || registro.notaEncrypted
-                );
-
-                setNota(notaDescifrada);
-            })();
+            setNota(registro?.nota || '');
             if (registro.etiquetas && Array.isArray(registro.etiquetas)) {
                 const normalized = registro.etiquetas
                     .map(tag => EMOTIONS.find(e => e.id === tag))
@@ -675,13 +627,7 @@ export default function RegistroEmocional({
                 setEmoji(initial.emoji || '');
                 setIntensity(initial.intensity ?? 5);
                 setTagsText((initial.tags || initial.etiquetas || []).join(', '));
-                (async () => {
-                    const notaDescifrada = await decryptNotaSafe(
-                        initial.nota || initial.notaEncrypted
-                    );
-
-                    setNota(notaDescifrada);
-                })();
+                setNota(initial?.nota || '');
                 const normalized = (initial.selectedEmotions || initial.emociones || []).map(normalizeEmotion).filter(Boolean);
                 setSelectedEmotions(normalized);
                 setError('');
@@ -767,19 +713,6 @@ export default function RegistroEmocional({
             console.error('encryptAesGcmBase64BackendFormat failed', e);
             if (e.message === 'invalid_key_length') throw new Error('encrypt_invalid_key');
             throw new Error('encrypt_failed');
-        }
-    }
-    async function decryptNotaSafe(cipherText) {
-        if (!cipherText) return '';
-
-        try {
-            return await decryptAesGcmBase64BackendFormat(
-                cipherText,
-                notaKeyBase64
-            );
-        } catch (err) {
-            console.error('Error desencriptando nota:', err);
-            return '';
         }
     }
     async function submit() {
