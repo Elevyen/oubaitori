@@ -21,7 +21,6 @@ const RECOMENDACIONES = [
   "Relaja la mandíbula para liberar tensión."
 ];
 
-const notaKey = (typeof window !== 'undefined') ? (import.meta.env.VITE_NOTA_MASTER_KEY || null) : null;
 const _inFlightAnalisis = new Map(); // fecha Promise
 const _lastFetchTimestamp = new Map(); // fecha ms timestamp
 const MIN_FETCH_INTERVAL_MS = 300 * 1000; // 5m mínimo entre fetchs para la misma fecha
@@ -34,7 +33,6 @@ const API_BASE =
   "";
 
 export default function Dashboard() {
-  const notaKey = (typeof window !== 'undefined') ? (import.meta.env.VITE_NOTA_MASTER_KEY || null) : null;
   const { user, setUser } = useContext(AuthContext) || {};
   const navigate = useNavigate();
   const [recomendacion] = useState(() => getRecomendacionAleatoria());
@@ -738,7 +736,7 @@ export default function Dashboard() {
         emociones: safePayload.emociones,
         intensidad: safePayload.intensidad,
         etiquetas: safePayload.etiquetas,
-        notaEncrypted: safePayload.notaEncrypted,
+        nota: safePayload.nota,
         meta: { ...(safePayload.meta || {}), source: (safePayload.meta && safePayload.meta.source) || "modal" },
       };
 
@@ -1508,7 +1506,6 @@ const entradasUsuarioOrdenadas = [...entradasUsuario].sort((a, b) => {
         onSave={handleGuardarEntrada}
         usuarioActual={user || storedUser}
         token={token}
-        notaKeyBase64={notaKey}
         guardarRegistro={guardarRegistro}
         sincronizarConServidor={sincronizarConServidor}
         apiBase={API_BASE}

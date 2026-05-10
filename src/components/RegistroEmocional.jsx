@@ -86,45 +86,6 @@ const EMOTIONS = [
     { id: 'hormigueo', label: 'Hormigueo', emoji: '🫢', tipo: 'neutra', color: '#FFE0B2', textColor: '#111111' }
 ];
 
-// Encriptado helpers
-function base64ToArrayBuffer(base64) {
-    const binary = atob(base64);
-    const len = binary.length;
-    const bytes = new Uint8Array(len);
-    for (let i = 0; i < len; i++) bytes[i] = binary.charCodeAt(i);
-    return bytes.buffer;
-}
-function arrayBufferToBase64(buffer) {
-    const bytes = new Uint8Array(buffer);
-    let binary = '';
-    for (let i = 0; i < bytes.byteLength; i++) binary += String.fromCharCode(bytes[i]);
-    return btoa(binary);
-}
-async function importAesKeyFromBase64(base64Key) {
-    const raw = base64ToArrayBuffer(base64Key);
-    if (!(raw && raw.byteLength === 32)) {
-        throw new Error('invalid_key_length');
-    }
-    return await crypto.subtle.importKey('raw', raw, 'AES-GCM', false, ['encrypt']);
-}
-async function encryptAesGcmBase64BackendFormat(plainText, base64Key) {
-    if (!plainText) return null;
-    const key = await importAesKeyFromBase64(base64Key);
-    const iv = crypto.getRandomValues(new Uint8Array(12));
-    const enc = new TextEncoder();
-    const data = enc.encode(String(plainText));
-    const cipherBuffer = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, data);
-    const cipherBytes = new Uint8Array(cipherBuffer);
-    const tagLen = 16;
-    if (cipherBytes.length < tagLen) throw new Error('cipher_too_short');
-    const ciphertext = cipherBytes.slice(0, cipherBytes.length - tagLen);
-    const tag = cipherBytes.slice(cipherBytes.length - tagLen);
-    const combined = new Uint8Array(iv.byteLength + tag.byteLength + ciphertext.byteLength);
-    combined.set(iv, 0);
-    combined.set(tag, iv.byteLength);
-    combined.set(ciphertext, iv.byteLength + tag.byteLength);
-    return arrayBufferToBase64(combined.buffer);
-}
 // Asegura que ID es string (no elimina campos)
 function ensureIdsAreStrings(obj) {
     if (!obj || typeof obj !== 'object') return obj;
@@ -349,8 +310,7 @@ export default function RegistroEmocional({
     guardarRegistro: guardarRegistroProp,
     sincronizarConServidor: sincronizarProp,
     apiBase = '',
-    existingEntry = false,
-    notaKeyBase64
+    existingEntry = false
 }) {
     const normalizeEmotion = (e) => {
         if (!e) return null;
@@ -701,20 +661,6 @@ export default function RegistroEmocional({
         setTagsText(joinTags(parts));
     };
 
-    // Encriptar nota en cliente usando notaKeyBase64
-    async function encryptNotaOrThrow(plain) {
-        if (!plain) return null;
-        if (typeof notaKeyBase64 !== 'string' || !notaKeyBase64.trim()) {
-            throw new Error('encrypt_not_configured');
-        }
-        try {
-            return await encryptAesGcmBase64BackendFormat(String(plain), notaKeyBase64);
-        } catch (e) {
-            console.error('encryptAesGcmBase64BackendFormat failed', e);
-            if (e.message === 'invalid_key_length') throw new Error('encrypt_invalid_key');
-            throw new Error('encrypt_failed');
-        }
-    }
     async function submit() {
         setSaving(true);
         setError('');
@@ -786,23 +732,9 @@ export default function RegistroEmocional({
                 }
             }
 
-            // Encriptar nota en cliente y añadir notaEncrypted
-            let notaEncryptedToSend = null;
-            if ((nota || '').trim().length > 0) {
-                try {
-                    notaEncryptedToSend = await encryptNotaOrThrow(nota);
-                } catch (encErr) {
-                    console.error('encryptNota failed:', encErr);
-                    const err = new Error(encErr.message === 'encrypt_not_configured' ? 'No hay método de encriptación configurado.' : 'No se pudo encriptar la nota. Intenta de nuevo más tarde.');
-                    err.code = encErr.message === 'encrypt_not_configured' ? 'encrypt_not_configured' : (encErr.message === 'encrypt_invalid_key' ? 'encrypt_invalid_key' : 'encrypt_failed');
-                    throw err;
-                }
-                carga.notaEncrypted = notaEncryptedToSend;
-            } else {
-                if (initial && (initial.id || initial._id)) {
-                    carga.notaEncrypted = null;
-                }
-            }
+            // La nota se envía en texto plano.
+            // El backend se encarga del cifrado.
+            carga.nota = (nota || '').trim();
             // Los registros anteriores nunca deben actualizarse
             if (formatDate(fechaPayload) !== todayDate()) {
                 delete carga.id;
@@ -831,7 +763,7 @@ export default function RegistroEmocional({
                     fecha: safeCarga.fecha,
                     id: safeCarga.id,
                     userIdPresent: !!safeCarga.userId,
-                    notaEncryptedPresent: !!safeCarga.notaEncrypted,
+                    notaPresent: !!safeCarga.nota,
                     emocionesCount: Array.isArray(safeCarga.emociones) ? safeCarga.emociones.length : 0
                 });
             } catch (e) { }
@@ -840,8 +772,8 @@ export default function RegistroEmocional({
                 fecha: safeCarga.fecha,
                 id: safeCarga.id,
                 userId: safeCarga.userId,
-                notaEncryptedPresent: Object.prototype.hasOwnProperty.call(safeCarga, 'notaEncrypted'),
-                notaEncryptedIsNull: safeCarga.notaEncrypted === null,
+                notaPresent: Object.prototype.hasOwnProperty.call(safeCarga, 'nota'),
+                notaLength: safeCarga.nota?.length || 0,
                 emocionesCount: Array.isArray(safeCarga.emociones)
                     ? safeCarga.emociones.length
                     : 0
@@ -889,8 +821,7 @@ export default function RegistroEmocional({
                     const pending = { ...safeCarga };
                     pending.fecha = formatDate(pending.fecha);
                     if (!pending.id) pending.id = generateClientId();
-                    // Si notaEncrypted es undefined, no incluirla para evitar sobrescribir en servidor
-                    if (typeof pending.notaEncrypted === 'undefined') delete pending.notaEncrypted;
+                    if (typeof pending.nota === 'undefined') delete pending.nota;
                     pendientes.push(pending);
                     localStorage.setItem('pendingRegistros', JSON.stringify(pendientes));
                 } catch (e) {
@@ -920,12 +851,6 @@ export default function RegistroEmocional({
                 setError('No se pudo actualizar el registro. Intenta de nuevo más tarde.');
             } else if (err && (err.code === 'Usuario no autenticado' || err.code === 'no_token' || err.code === 'no_autorizado')) {
                 setError('Usuario no autenticado. Inicia sesión e inténtalo de nuevo.');
-            } else if (err && err.code === 'encrypt_failed') {
-                setError('No se pudo encriptar la nota. Intenta de nuevo más tarde.');
-            } else if (err && err.code === 'encrypt_not_configured') {
-                setError('No hay método de encriptación configurado. Contacta con la app.');
-            } else if (err && err.code === 'encrypt_invalid_key') {
-                setError('Clave de encriptación inválida. Contacta con la app.');
             } else {
                 setError(err.message || 'No se pudo guardar el registro.');
             }
