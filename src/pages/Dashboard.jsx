@@ -180,44 +180,119 @@ export default function Dashboard() {
 
   // --- Normalización y fetch single
   function normalizeRegistro(raw) {
-    if (!raw) return null;
+    if (!raw || typeof raw !== "object") {
+      return null;
+    }
 
-    const safe = ensureIdsAreStrings(raw);
+    // evitar raw anidados infinitos
+    const base =
+      raw.raw && typeof raw.raw === "object"
+        ? raw.raw
+        : raw;
 
-    const id = safe._id || safe.id || safe.registroId || null;
-    const _id = safe._id || (safe.id ? String(safe.id) : null);
+    const safe = ensureIdsAreStrings(base);
 
-    const fecha = formatDate(safe.fecha || safe.date || safe.createdAt || null);
-    const hora = safe.hora || safe.time || safe.createdAt || null;
-    const nota = safe.nota || null;
+    const id =
+      safe._id ||
+      safe.id ||
+      safe.registroId ||
+      null;
 
-    const emociones = safe.emociones || safe.emotions || safe.emotionList || [];
-    const intensidad = safe.intensidad ?? safe.intensity ?? safe.int ?? null;
-    const etiquetas = safe.etiquetas || safe.tags || safe.labels || [];
+    const _id =
+      safe._id ||
+      (safe.id ? String(safe.id) : null);
 
-    const usuarioId = safe.usuarioId || safe.userId || (safe.usuario && safe.usuario._id) || (safe.user && safe.user._id) || null;
-    const usuario = safe.usuario || safe.user || (usuarioId ? { _id: usuarioId, email: safe.email || null } : null);
+    const fecha = formatDate(
+      safe.fecha ||
+      safe.date ||
+      safe.createdAt ||
+      null
+    );
 
-    const meta = safe.meta || {};
-    const synced = typeof safe.synced !== 'undefined' ? safe.synced : (safe.synced === undefined ? null : safe.synced);
-    const version = safe.version ?? safe.__v ?? null;
+    const hora =
+      safe.hora ||
+      safe.time ||
+      safe.createdAt ||
+      null;
+
+    const nota =
+      safe.nota || null;
+
+    // NORMALIZAR EMOCIONES BIEN
+    const emocionesRaw = Array.isArray(safe.emociones)
+      ? safe.emociones
+      : Array.isArray(safe.emotions)
+        ? safe.emotions
+        : Array.isArray(safe.emotionList)
+          ? safe.emotionList
+          : [];
+
+    const emociones = emocionesRaw
+      .filter(Boolean)
+      .map((e) => ({
+        id: String(e.id || "").trim(),
+        label: String(e.label || "").trim(),
+        emoji: String(e.emoji || ""),
+        color: String(e.color || ""),
+        textColor: String(e.textColor || ""),
+        tipo: e.tipo || "neutra",
+      }))
+      .filter((e) => e.id || e.label);
+
+    const intensidad =
+      safe.intensidad ??
+      safe.intensity ??
+      safe.int ??
+      null;
+
+    const etiquetas = Array.isArray(safe.etiquetas)
+      ? safe.etiquetas
+      : Array.isArray(safe.tags)
+        ? safe.tags
+        : [];
+
+    const usuarioId =
+      safe.usuarioId ||
+      safe.userId ||
+      safe.usuario?._id ||
+      safe.user?._id ||
+      null;
+
+    const usuario =
+      safe.usuario ||
+      safe.user ||
+      (usuarioId
+        ? {
+          _id: usuarioId,
+          email: safe.email || null,
+        }
+        : null);
 
     return {
-      ...safe,
       _id,
       id,
       fecha,
       hora,
       nota,
-      emociones: Array.isArray(emociones) ? emociones : [],
+      emociones,
       intensidad,
-      etiquetas: Array.isArray(etiquetas) ? etiquetas : [],
+      etiquetas,
       usuarioId,
       usuario,
-      meta,
-      synced,
-      version,
-      raw: safe
+      meta: safe.meta || {},
+      synced:
+        typeof safe.synced !== "undefined"
+          ? safe.synced
+          : null,
+      version:
+        safe.version ??
+        safe.__v ??
+        null,
+
+      createdAt: safe.createdAt,
+      updatedAt: safe.updatedAt,
+      userId: safe.userId,
+      usuarioId: safe.usuarioId,
     };
   }
 
