@@ -786,38 +786,123 @@ export default function Dashboard() {
     }
 
     try {
-      console.log('LANZANDO POST REAL');
-      const url = `${API_BASE || ""}/api/registros`;
-      console.log('LANZANDO PUT REAL');
+
+      const url =
+        `${API_BASE || ""}/api/registros`;
+
+      console.log('URL POST:', url);
+
+      console.log(
+        'Payload FINAL POST:',
+        safePayload
+      );
+
+      console.log(
+        'Payload STRING:',
+        JSON.stringify(
+          safePayload,
+          null,
+          2
+        )
+      );
+
+      console.log(
+        'Token existe:',
+        !!authToken
+      );
+
+      console.log(
+        'ANTES FETCH POST'
+      );
+
       const res = await fetch(url, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${authToken}`,
+          Authorization:
+            `Bearer ${authToken}`,
         },
         body: JSON.stringify(safePayload),
       });
 
-      const json = await res.json().catch(() => ({}));
+      console.log(
+        'DESPUÉS FETCH POST'
+      );
+
+      console.log(
+        'STATUS:',
+        res.status
+      );
+
+      const text =
+        await res.text();
+
+      console.log(
+        'RESPUESTA RAW:',
+        text
+      );
+
+      let json = {};
+
+      try {
+        json = text
+          ? JSON.parse(text)
+          : {};
+      } catch (e) {
+        console.error(
+          'JSON parse error:',
+          e
+        );
+      }
 
       if (!res.ok) {
-        const errorMsg = json.message || "error_guardando";
-        const err = new Error(errorMsg);
-        err.code = json.error || "error_guardando";
-        err.detalle = json.detalle;
-        console.error("Detalle del error en el servidor:", json.detalle);
+
+        const errorMsg =
+          json.message ||
+          "error_guardando";
+
+        const err =
+          new Error(errorMsg);
+
+        err.code =
+          json.error ||
+          "error_guardando";
+
+        err.detalle =
+          json.detalle;
+
+        console.error(
+          "Detalle servidor:",
+          json.detalle
+        );
+
         throw err;
       }
 
       try {
-        const updated = await loadEntriesByMonth(mesSeleccionado);
-        setEntradas(Array.isArray(updated) ? updated : []);
-      } catch (e) {
-      }
+
+        const updated =
+          await loadEntriesByMonth(
+            mesSeleccionado
+          );
+
+        setEntradas(
+          Array.isArray(updated)
+            ? updated
+            : []
+        );
+
+      } catch (e) { }
 
       return json.registro || json;
+
     } catch (err) {
-      console.error("guardarRegistro POST error:", err);
+
+      console.error(
+        'ERROR REAL FETCH POST:',
+        err
+      );
+
       throw err;
     }
   }
@@ -1228,14 +1313,14 @@ export default function Dashboard() {
   const handleGuardarEntrada = async (savedRegistro) => {
     try {
       if (!savedRegistro) return;
-      console.log('Registro ya guardado:',savedRegistro);
+      console.log('Registro ya guardado:', savedRegistro);
       const updated = await loadEntriesByMonth(mesSeleccionado);
 
       setEntradas(Array.isArray(updated) ? updated : []);
 
       enqueueReconcile(savedRegistro.fecha);
     } catch (error) {
-      console.error('handleGuardarEntrada error:',error);
+      console.error('handleGuardarEntrada error:', error);
     }
   };
 
