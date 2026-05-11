@@ -440,7 +440,17 @@ export default function RegistroEmocional({
             return false;
         }
     }, [initial?.id, initial?.fecha]);
+    const isReadonlyPastEntry = useMemo(() => {
+        if (!existingEntry) return false;
 
+        const fecha =
+            existingEntry.fecha ||
+            existingEntry.date;
+
+        if (!fecha) return false;
+
+        return formatDate(fecha) !== todayDate();
+    }, [existingEntry]);
     useEffect(() => {
         if (!open) return;
         const idToLoad = initial && (initial.id || initial._id) ? (initial.id || initial._id) : null;
@@ -901,6 +911,7 @@ export default function RegistroEmocional({
                     <div className="field">
                         <div className="field-label">Buscar emoción</div>
                         <input
+                            disabled={isReadonlyPastEntry}
                             autoFocus
                             value={filter}
                             onChange={e => setFilter(e.target.value)}
@@ -916,6 +927,7 @@ export default function RegistroEmocional({
                                 const isSelected = !!selectedEmotions.find(s => s.id === e.id);
                                 return (
                                     <button
+                                        disabled={isReadonlyPastEntry}
                                         key={e.id}
                                         type="button"
                                         className={`preset-btn ${isSelected ? 'preset-selected' : ''}`}
@@ -944,6 +956,7 @@ export default function RegistroEmocional({
                     <label className="field">
                         <div className="field-label">Intensidad</div>
                         <input
+                            disabled={isReadonlyPastEntry}
                             type="range"
                             min="0"
                             max="10"
@@ -957,6 +970,7 @@ export default function RegistroEmocional({
                     <label className="field">
                         <div className="field-label">Etiquetas</div>
                         <input
+                            disabled={isReadonlyPastEntry}
                             value={tagsText}
                             onChange={e => setTagsText(e.target.value)}
                             onKeyDown={handleTagsKey}
@@ -972,6 +986,7 @@ export default function RegistroEmocional({
                     <label className="field">
                         <div className="field-label">Nota</div>
                         <textarea
+                            disabled={isReadonlyPastEntry}
                             value={nota}
                             onChange={e => setNota(e.target.value)}
                             maxLength={2000}
@@ -991,7 +1006,11 @@ export default function RegistroEmocional({
                         if (!isEditingToday) resetForm(false);
                         onClose();
                     }} disabled={saving}>Cancelar</button>
-                    <button className="btn-primary" onClick={submit} disabled={saving}>{saving ? 'Guardando...' : (isEditingToday ? 'Actualizar' : 'Guardar')}</button>
+                    {!isReadonlyPastEntry && (
+                        <button className="btn-primary" onClick={submit} disabled={saving}>
+                            {saving? 'Guardando...' : (isEditingToday ? 'Actualizar' : 'Guardar')}
+                        </button>
+                    )}
                 </footer>
             </div>
         </div>
