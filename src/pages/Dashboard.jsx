@@ -648,12 +648,6 @@ export default function Dashboard() {
           return;
         }
       }
-      // Si existe y no es hoy, no abrir modal para editar
-      if (existing && dateString !== todayKey) {
-        setModalLoading(false);
-        setMensajeGuia("Ya existe un registro para ese día.");
-        return;
-      }
 
       // No existe entrada local: hacer fallback remoto
       console.debug('handleDayClick - no local entry found, fetching month to confirm', dateString);
@@ -1174,31 +1168,31 @@ export default function Dashboard() {
   const currentUserId = String(user?._id || user?.id || storedUser?._id || storedUser?.id || "").trim();
   console.log("currentUserId", currentUserId);
 
-console.log(
-  "entradas userIds",
-  entradas.map((e) => ({
-    userId: e.userId,
-    usuarioId: e.usuarioId
-  }))
-);
+  console.log(
+    "entradas userIds",
+    entradas.map((e) => ({
+      userId: e.userId,
+      usuarioId: e.usuarioId
+    }))
+  );
   const currentUserEmail = (user?.email || storedUser?.email || "").toLowerCase().trim();
 
   const entradasUsuario = (entradas || []).filter((e) => {
-  const entryUid = String(e.usuarioId || e.userId || e.usuario?._id || e.user?.id || "").trim();
-  return entryUid === currentUserId;
-});
-console.log("entradasUsuario", entradasUsuario);
-const parseFecha = (fechaStr) => {
-  if (!fechaStr) return 0;
+    const entryUid = String(e.usuarioId || e.userId || e.usuario?._id || e.user?.id || "").trim();
+    return entryUid === currentUserId;
+  });
+  console.log("entradasUsuario", entradasUsuario);
+  const parseFecha = (fechaStr) => {
+    if (!fechaStr) return 0;
 
-  const [dd, mm, yyyy] = fechaStr.split("-");
+    const [dd, mm, yyyy] = fechaStr.split("-");
 
-  return new Date(`${yyyy}-${mm}-${dd}`).getTime();
-};
+    return new Date(`${yyyy}-${mm}-${dd}`).getTime();
+  };
 
-const entradasUsuarioOrdenadas = [...entradasUsuario].sort((a, b) => {
-  return parseFecha(b.fecha) - parseFecha(a.fecha);
-});
+  const entradasUsuarioOrdenadas = [...entradasUsuario].sort((a, b) => {
+    return parseFecha(b.fecha) - parseFecha(a.fecha);
+  });
 
   const ultimaEntrada = entradasUsuarioOrdenadas[0] || null;
 
@@ -1259,11 +1253,38 @@ const entradasUsuarioOrdenadas = [...entradasUsuario].sort((a, b) => {
           throw err;
         }
       } else if (payloadCopy.id) {
-        try {
-          const updated = await guardarRegistro({ ...payloadCopy });
-          savedRegistro = updated.registro || updated;
-        } catch (err) {
-          throw err;
+
+        const fechaPayload =
+          formatDate(payloadCopy.fecha);
+
+        const esHoy =
+          fechaPayload === todayDate();
+
+        // SOLO permitir PUT para hoy
+        if (!esHoy) {
+
+          console.log(
+            'Bloqueando PUT de día anterior',
+            fechaPayload
+          );
+
+          savedRegistro = payloadCopy;
+
+        } else {
+
+          try {
+
+            const updated =
+              await guardarRegistro({
+                ...payloadCopy
+              });
+
+            savedRegistro =
+              updated.registro || updated;
+
+          } catch (err) {
+            throw err;
+          }
         }
       } else {
         savedRegistro = savedOrPayload;
