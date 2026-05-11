@@ -788,7 +788,15 @@ export default function RegistroEmocional({
                     ? safeCarga.emociones.length
                     : 0
             });
-
+            console.log('========== PAYLOAD FINAL ==========');
+            console.log('Fecha:', safeCarga.fecha);
+            console.log('Es hoy:', formatDate(safeCarga.fecha) === todayDate());
+            console.log('ID:', safeCarga.id);
+            console.log('Emociones completas:', safeCarga.emociones);
+            console.log('Etiquetas:', safeCarga.etiquetas);
+            console.log('Nota:', safeCarga.nota);
+            console.log('Payload JSON:', JSON.stringify(safeCarga, null, 2));
+            console.log('===================================');
             let guardado;
             try {
                 guardado = await guardarRegistro(safeCarga, { token });
@@ -1008,7 +1016,7 @@ export default function RegistroEmocional({
                     }} disabled={saving}>Cancelar</button>
                     {!isReadonlyPastEntry && (
                         <button className="btn-primary" onClick={submit} disabled={saving}>
-                            {saving? 'Guardando...' : (isEditingToday ? 'Actualizar' : 'Guardar')}
+                            {saving ? 'Guardando...' : (isEditingToday ? 'Actualizar' : 'Guardar')}
                         </button>
                     )}
                 </footer>
