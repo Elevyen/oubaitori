@@ -695,11 +695,11 @@ export default function Dashboard() {
   };
 
   async function guardarRegistro(payload, { token: overrideToken } = {}) {
-      console.log('========== ENTRANDO guardarRegistro ==========');
-console.log('Payload recibido:', payload);
-console.log('Fecha:', payload?.fecha);
-console.log('Tiene ID:', !!(payload?.id || payload?._id));
-console.log('==============================================');
+    console.log('========== ENTRANDO guardarRegistro ==========');
+    console.log('Payload recibido:', payload);
+    console.log('Fecha:', payload?.fecha);
+    console.log('Tiene ID:', !!(payload?.id || payload?._id));
+    console.log('==============================================');
     const authToken = overrideToken || token;
     if (!authToken) {
       const err = new Error("Usuario no autenticado");
@@ -1225,97 +1225,17 @@ console.log('==============================================');
       })
       .slice(0, 5) : [];
 
-  const handleGuardarEntrada = async (savedOrPayload) => {
+  const handleGuardarEntrada = async (savedRegistro) => {
     try {
-      const isServerSaved = savedOrPayload && (savedOrPayload._id || savedOrPayload.id);
-      let savedRegistro = null;
+      if (!savedRegistro) return;
+      console.log('Registro ya guardado:',savedRegistro);
+      const updated = await loadEntriesByMonth(mesSeleccionado);
 
-      const payloadCopy = { ...(savedOrPayload || {}) };
-      const fecha = payloadCopy.fecha || todayDate();
-      if (!isServerSaved && fecha) {
-        const existingForDate = findEntryForDate(fecha);
-        if (existingForDate && (existingForDate.id || existingForDate._id) && fecha === todayDate()) {
-          payloadCopy.id = existingForDate.id || existingForDate._id;
-        }
-      }
+      setEntradas(Array.isArray(updated) ? updated : []);
 
-      if (!isServerSaved && !payloadCopy.id && payloadCopy.fecha) {
-        markSavingDate(payloadCopy.fecha, true);
-        try {
-          const created = await guardarRegistro({ ...payloadCopy });
-          savedRegistro = created.registro || created;
-        } catch (err) {
-          if (err && err.code === "registro_existente") {
-            markSavingDate(payloadCopy.fecha, false);
-            throw err;
-          }
-
-          markSavingDate(payloadCopy.fecha, false);
-          try {
-            const raw = localStorage.getItem("pendingRegistros");
-            const arr = raw ? JSON.parse(raw) : [];
-            arr.push(payloadCopy);
-            localStorage.setItem("pendingRegistros", JSON.stringify(arr));
-          } catch { }
-          throw err;
-        }
-      } else if (payloadCopy.id) {
-
-        const fechaPayload =
-          formatDate(payloadCopy.fecha);
-
-        const esHoy =
-          fechaPayload === todayDate();
-
-        // SOLO permitir PUT para hoy
-        if (!esHoy) {
-
-          console.log(
-            'Bloqueando PUT de día anterior',
-            fechaPayload
-          );
-
-          savedRegistro = payloadCopy;
-
-        } else {
-
-          try {
-
-            const updated =
-              await guardarRegistro({
-                ...payloadCopy
-              });
-
-            savedRegistro =
-              updated.registro || updated;
-
-          } catch (err) {
-            throw err;
-          }
-        }
-      } else {
-        savedRegistro = savedOrPayload;
-      }
-
-      if (savedRegistro) {
-        const updated = await loadEntriesByMonth(mesSeleccionado);
-        setEntradas(updated);
-        markSavingDate(savedRegistro.fecha, false);
-        enqueueReconcile(savedRegistro.fecha);
-      }
+      enqueueReconcile(savedRegistro.fecha);
     } catch (error) {
-      if (error && error.code === "registro_existente") {
-        setMensajeGuia("Ya existe un registro para esa fecha.");
-        if (error.existing) {
-          const reg = normalizeRegistro(error.existing);
-          setExistingForSelectedDate(reg);
-          setModalInitial(reg);
-          setmodalRegistro(true);
-        }
-        return;
-      }
-
-      console.error("handleGuardarEntrada error:", error);
+      console.error('handleGuardarEntrada error:',error);
     }
   };
 
