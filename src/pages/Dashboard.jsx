@@ -693,12 +693,13 @@ export default function Dashboard() {
       setmodalRegistro(true);
     }
   };
-  console.log('========== ENTRANDO guardarRegistro ==========');
+
+  async function guardarRegistro(payload, { token: overrideToken } = {}) {
+      console.log('========== ENTRANDO guardarRegistro ==========');
 console.log('Payload recibido:', payload);
 console.log('Fecha:', payload?.fecha);
 console.log('Tiene ID:', !!(payload?.id || payload?._id));
 console.log('==============================================');
-  async function guardarRegistro(payload, { token: overrideToken } = {}) {
     const authToken = overrideToken || token;
     if (!authToken) {
       const err = new Error("Usuario no autenticado");
