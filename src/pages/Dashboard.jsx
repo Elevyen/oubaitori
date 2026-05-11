@@ -693,7 +693,11 @@ export default function Dashboard() {
       setmodalRegistro(true);
     }
   };
-
+  console.log('========== ENTRANDO guardarRegistro ==========');
+console.log('Payload recibido:', payload);
+console.log('Fecha:', payload?.fecha);
+console.log('Tiene ID:', !!(payload?.id || payload?._id));
+console.log('==============================================');
   async function guardarRegistro(payload, { token: overrideToken } = {}) {
     const authToken = overrideToken || token;
     if (!authToken) {
@@ -781,7 +785,9 @@ export default function Dashboard() {
     }
 
     try {
+      console.log('LANZANDO POST REAL');
       const url = `${API_BASE || ""}/api/registros`;
+      console.log('LANZANDO PUT REAL');
       const res = await fetch(url, {
         method: "POST",
         headers: {
