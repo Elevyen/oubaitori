@@ -315,48 +315,28 @@ export default function RegistroEmocional({
     const normalizeEmotion = (e) => {
         if (!e) return null;
 
-        // Caso string
-        if (typeof e === 'string') {
-            const key = String(e)
-                .trim()
-                .toLowerCase();
-
-            if (!key) return null;
-
-            const found = EMOTIONS.find(
-                x => String(x.id).toLowerCase() === key
-            );
-
+        if (typeof e === "string") {
+            const found = EMOTIONS.find(x => x.id === e);
             return found ? { ...found } : null;
         }
+        // Si ya tiene id
+        const emotionId = e.id || e.label;
 
-        // Caso objeto
-        const rawId = e.id || e.label;
-
-        if (!rawId) return null;
-
-        const emotionId = String(rawId)
-            .trim()
-            .toLowerCase();
-
-        if (!emotionId) return null;
-
-        const found = EMOTIONS.find(
-            x => String(x.id).toLowerCase() === emotionId
-        );
-
-        if (found) {
-            return { ...found };
+        if (emotionId) {
+            const found = EMOTIONS.find(x => x.id === emotionId);
+            if (found) {
+                return { ...found };
+            }
+            return {
+                id: String(emotionId).trim(),
+                label: String(e.label || e.id).trim(),
+                emoji: e.emoji || '',
+                tipo: e.tipo || 'neutra',
+                color: e.color || '',
+                textColor: e.textColor || ''
+            };
         }
-
-        return {
-            id: emotionId,
-            label: String(e.label || rawId).trim(),
-            emoji: e.emoji || '',
-            tipo: e.tipo || 'neutra',
-            color: e.color || '',
-            textColor: e.textColor || ''
-        };
+        return null;
     };
 
     const [emoji, setEmoji] = useState(initial.emoji || '');
@@ -504,8 +484,11 @@ export default function RegistroEmocional({
                     setNota('');
                 }
 
-                if (registro.emociones && Array.isArray(registro.emociones)) {
-                    const normalized = registro.emociones.map(normalizeEmotion).filter(Boolean);
+                if (registro.etiquetas && Array.isArray(registro.etiquetas)) {
+                    const normalized = registro.etiquetas
+                        .map(tag => EMOTIONS.find(e => e.id === tag))
+                        .filter(Boolean);
+
                     setSelectedEmotions(normalized);
                 }
 
@@ -576,8 +559,11 @@ export default function RegistroEmocional({
             // asigna estado con todo el registro (nota ya desencriptada por backend si eres owner)
             setLoadedRegistroId(registro.id || registro._id || null);
             setNota(registro?.nota || '');
-            if (registro.emociones && Array.isArray(registro.emociones)) {
-                const normalized = registro.emociones.map(normalizeEmotion).filter(Boolean);
+            if (registro.etiquetas && Array.isArray(registro.etiquetas)) {
+                const normalized = registro.etiquetas
+                    .map(tag => EMOTIONS.find(e => e.id === tag))
+                    .filter(Boolean);
+
                 setSelectedEmotions(normalized);
             }
             if (typeof registro.intensidad !== 'undefined' && registro.intensidad !== null) {
@@ -707,14 +693,13 @@ export default function RegistroEmocional({
                 .map(normalizeEmotion)
                 .filter(Boolean)
                 .map(e => ({
-                    id: String(e.id || '').trim(),
-                    label: String(e.label || '').trim(),
+                    id: String(e.id),
+                    label: String(e.label || ''),
                     emoji: e.emoji || '',
                     tipo: e.tipo || 'neutra',
                     color: e.color || '',
                     textColor: e.textColor || ''
-                }))
-                .filter(e => e.id && e.label);
+                }));
 
             // Construcción de carga base
             const carga = {
