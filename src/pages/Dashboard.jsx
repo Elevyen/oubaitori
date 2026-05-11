@@ -415,23 +415,9 @@ export default function Dashboard() {
           return false;
         });
 
-      console.groupCollapsed("loadEntriesByMonth debug");
-      console.debug("month:", month);
-      console.debug("serverRaw length:", Array.isArray(serverRaw) ? serverRaw.length : 0);
-      console.debug("serverArr length (normalized):", Array.isArray(serverArr) ? serverArr.length : 0);
-      console.debug("serverArr sample:", (serverArr || []).slice(0, 3));
-      console.debug("cacheArr length:", Array.isArray(cacheArr) ? cacheArr.length : 0);
-      console.debug("cacheArr sample:", (cacheArr || []).slice(0, 3));
-      console.debug("pendientesArr length:", Array.isArray(pendientesArr) ? pendientesArr.length : 0);
-      console.debug("pendientesArr sample:", (pendientesArr || []).slice(0, 3));
-      console.groupEnd();
 
       const merged = mergeServerAndCache(serverArr, cacheArr.concat(pendientesArr), { currentUserId, currentUserEmail });
 
-      console.groupCollapsed("loadEntriesByMonth merged");
-      console.debug("merged length:", Array.isArray(merged) ? merged.length : 0);
-      console.debug("merged sample:", (merged || []).slice(0, 5));
-      console.groupEnd();
 
       saveEntradasCache(merged, { userId: currentUserId, userEmail: currentUserEmail });
       return merged;
@@ -770,11 +756,6 @@ export default function Dashboard() {
   };
 
   async function guardarRegistro(payload, { token: overrideToken } = {}) {
-    console.log('========== ENTRANDO guardarRegistro ==========');
-    console.log('Payload recibido:', payload);
-    console.log('Fecha:', payload?.fecha);
-    console.log('Tiene ID:', !!(payload?.id || payload?._id));
-    console.log('==============================================');
     const authToken = overrideToken || token;
     if (!authToken) {
       const err = new Error("Usuario no autenticado");
@@ -865,31 +846,6 @@ export default function Dashboard() {
       const url =
         `${API_BASE || ""}/api/registros`;
 
-      console.log('URL POST:', url);
-
-      console.log(
-        'Payload FINAL POST:',
-        safePayload
-      );
-
-      console.log(
-        'Payload STRING:',
-        JSON.stringify(
-          safePayload,
-          null,
-          2
-        )
-      );
-
-      console.log(
-        'Token existe:',
-        !!authToken
-      );
-
-      console.log(
-        'ANTES FETCH POST'
-      );
-
       const res = await fetch(url, {
         method: "POST",
         headers: {
@@ -900,22 +856,8 @@ export default function Dashboard() {
         body: JSON.stringify(safePayload),
       });
 
-      console.log(
-        'DESPUÉS FETCH POST'
-      );
-
-      console.log(
-        'STATUS:',
-        res.status
-      );
-
       const text =
         await res.text();
-
-      console.log(
-        'RESPUESTA RAW:',
-        text
-      );
 
       let json = {};
 
@@ -972,11 +914,6 @@ export default function Dashboard() {
       return json.registro || json;
 
     } catch (err) {
-
-      console.error(
-        'ERROR REAL FETCH POST:',
-        err
-      );
 
       throw err;
     }
@@ -1161,11 +1098,6 @@ export default function Dashboard() {
     setAnalysisLoading(true);
 
     try {
-      console.groupCollapsed("AnalisisDias - payload");
-      console.debug("windowDates:", windowDates);
-      console.debug("registrosAnalisis count:", payloadregistrosAnalisis.length);
-      console.debug("payloadregistrosAnalisis sample:", payloadregistrosAnalisis.slice(0, 6));
-      console.groupEnd();
 
       const res = await fetch(url, {
         method: "POST",
