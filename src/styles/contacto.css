@@ -4,7 +4,7 @@
     margin: 35px auto;
     font-size: 22px;
     font-weight: 700;
-    color: var(--page-foreground, #111);
+    color:  #1d032e;
 }
 
 #contacto-desc {
@@ -249,9 +249,7 @@ body,
 main.contacto-page {
     flex: 1 1 auto;
     align-items: center;
-    /* centra verticalmente */
     justify-content: center;
-    /* centra horizontalmente */
     padding: 28px 20px;
     box-sizing: border-box;
     min-height: 0;
