@@ -1365,8 +1365,8 @@ const entradasUsuarioOrdenadas = [...entradasUsuario].sort((a, b) => {
           <aside className="sidebar">
             <h2 className="sidebar-title">Oubaitori</h2>
             <nav>
-              <a href="/mapa-emocional">Mapa emocional</a>
-              <a href="/recomendaciones">Recomendaciones</a>
+              <a href="#">Mapa emocional PRÓXIMAMENTE</a>
+              <a href="#">Recomendaciones personalizadas PRÓXIMAMENTE</a>
               <a href="#" onClick={handleLogout} className="logout-link">
                 Cerrar sesión
               </a>
