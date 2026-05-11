@@ -74,7 +74,7 @@
     border-radius: 10px;
     border: 1px solid rgba(17, 24, 39, 0.08);
     font-size: 14px;
-    color: var(--page-foreground, #111);
+    color:  #1d032e;
     transition: box-shadow 0.18s ease, border-color 0.18s ease, transform 0.12s ease;
     box-sizing: border-box;
     margin-top: 6px;
@@ -124,7 +124,7 @@
     cursor: pointer;
     border: none;
     background: rgba(0, 0, 0, 0.06);
-    color: var(--page-foreground, #111);
+    color:  #1d032e;
 }
 
 .card.contacto-card button:not([disabled]):hover {
