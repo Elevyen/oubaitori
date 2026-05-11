@@ -257,7 +257,7 @@ export default function PerfilAdmin() {
     }
 
     async function deleteUser(id) {
-        const ok = window.confirm("¿Seguro que quieres borrar este usuario? Esta acción no se puede deshacer.");
+        const ok = window.confirm("¿Seguro que quieres borrar este usuario y sus registros? Esta acción no se puede deshacer.");
         if (!ok) return;
         setDeletingId(id);
         setError("");
