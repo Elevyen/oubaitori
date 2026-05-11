@@ -484,11 +484,8 @@ export default function RegistroEmocional({
                     setNota('');
                 }
 
-                if (registro.etiquetas && Array.isArray(registro.etiquetas)) {
-                    const normalized = registro.etiquetas
-                        .map(tag => EMOTIONS.find(e => e.id === tag))
-                        .filter(Boolean);
-
+                if (registro.emociones && Array.isArray(registro.emociones)) {
+                    const normalized = registro.emociones.map(normalizeEmotion).filter(Boolean);
                     setSelectedEmotions(normalized);
                 }
 
@@ -559,11 +556,8 @@ export default function RegistroEmocional({
             // asigna estado con todo el registro (nota ya desencriptada por backend si eres owner)
             setLoadedRegistroId(registro.id || registro._id || null);
             setNota(registro?.nota || '');
-            if (registro.etiquetas && Array.isArray(registro.etiquetas)) {
-                const normalized = registro.etiquetas
-                    .map(tag => EMOTIONS.find(e => e.id === tag))
-                    .filter(Boolean);
-
+            if (registro.emociones && Array.isArray(registro.emociones)) {
+                const normalized = registro.emociones.map(normalizeEmotion).filter(Boolean);
                 setSelectedEmotions(normalized);
             }
             if (typeof registro.intensidad !== 'undefined' && registro.intensidad !== null) {
