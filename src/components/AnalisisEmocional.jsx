@@ -70,12 +70,12 @@ export default function AnalisisEmocional({
                                     {Array.isArray(resumen.emocionesDominantes) &&
                                         resumen.emocionesDominantes.length > 0 && (
                                             <div className="analisis-tags">
-                                                {resumen.emocionesDominantes.map((emocion, index) => (
+                                                {resumen.emocionesDominantes.map((emocionObj, index) => (
                                                     <span
-                                                        key={`${emocion}-${index}`}
+                                                        key={`${emocionObj.emocion}-${index}`}
                                                         className="analisis-tag"
                                                     >
-                                                        {emocion}
+                                                        {emocionObj.emocion}
                                                     </span>
                                                 ))}
                                             </div>
