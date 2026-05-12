@@ -1,7 +1,6 @@
 import { useContext, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { AuthContext } from "../context/AuthContext";
-import { todayISODate } from "../utils/date";
 const API_BASE =
     (typeof import.meta !== "undefined" &&
         import.meta.env &&
@@ -186,60 +185,11 @@ export default function Login() {
             // Por defecto, ir al dashboard con el personaje (si existe)
             const personajeState = userObj.personaje || null;
 
-            // --- Recuperar último análisis local
-            let lastAnalisisLocal = null;
-            try {
-                const key = `lastAnalisis_${String(userObj.id)}`;
-                const raw = localStorage.getItem(key);
-                lastAnalisisLocal = raw ? JSON.parse(raw) : null;
-            } catch (e) {
-                console.debug("Login: error reading lastAnalisis local", e);
-                lastAnalisisLocal = null;
-            }
 
-            // --- Intento rápido de sincronizar con servidor (no bloqueante)
-            try {
-                (async () => {
-                    try {
-                        const fechaToCheck =
-                            (lastAnalisisLocal && lastAnalisisLocal.fechaClave) || todayISODate();
-                        const resp = await fetch(
-                            `${API_BASE}/api/AnalisisDiario/fecha/${encodeURIComponent(fechaToCheck)}`,
-                            {
-                                headers: { Authorization: `Bearer ${data.token}`, "Content-Type": "application/json" },
-                            }
-                        );
-                        if (resp.ok) {
-                            const j = await resp.json().catch(() => null);
-                            const lastAnalisisServer = j?.analisis || null;
-                            // opcional: sobrescribir localStorage con la versión del servidor
-                            try {
-                                if (lastAnalisisServer) {
-                                    const normalized = {
-                                        fechaClave: lastAnalisisServer.fechaClave,
-                                        analisisId: lastAnalisisServer._id || null,
-                                        resumen: lastAnalisisServer.resumenAnalisis || lastAnalisisServer.resumen || null,
-                                        savedAt: Date.now(),
-                                    };
-                                    localStorage.setItem(`lastAnalisis_${String(userObj.id)}`, JSON.stringify(normalized));
-                                }
-                            } catch (e) {
-                                /* ignore */
-                            }
-                        }
-                    } catch (e) {
-                        console.debug("Login: background fetch lastAnalisis failed", e);
-                    }
-                })();
-            } catch (e) {
-                console.debug("Login: cannot start background sync", e);
-            }
 
-            // --- Navegar pasando el análisis (local inmediato + server en background)
             navigate("/dashboard", {
                 state: {
-                    personaje: personajeState,
-                    lastAnalisisLocal,
+                    personaje: personajeState
                 },
             });
         } catch (err) {
