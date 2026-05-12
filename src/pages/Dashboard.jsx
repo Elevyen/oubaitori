@@ -1,7 +1,7 @@
 import { useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { fetchEntriesByMonth } from "../api/entries";
-import AnalisisSemanal from "../components/AnalisisSemanal";
+import AnalisisSemanal from "../components/AnalisisEmocional";
 import CalendarView from "../components/CalendarView";
 import RegistroEmocional from "../components/RegistroEmocional";
 import Card from "../components/ui/Card.jsx";
