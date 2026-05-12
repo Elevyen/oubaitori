@@ -56,7 +56,7 @@ export default function Dashboard() {
   });
   const reconcileIntervalIdRef = useRef(null);
   const _lastFetchTimestamp = useRef(new Map()).current;
-  const MIN_FETCH_INTERVAL_MS = 1000 * 300; // 5m
+  const MIN_FETCH_INTERVAL_MS = 1000 * 900; // 15m
   const [modalRegistro, setmodalRegistro] = useState(false);
   const [fechaSeleccionada, setFechaSeleccionada] = useState(null);
   const [modalInitial, setModalInitial] = useState(null);
