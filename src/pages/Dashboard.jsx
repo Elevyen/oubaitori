@@ -1065,11 +1065,12 @@ export default function Dashboard() {
             {
               method: "POST",
               headers: {
-                "Content-Type":
-                  "application/json",
-                Authorization:
-                  `Bearer ${token}`
-              }
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${token}`
+              },
+              body: JSON.stringify({
+                fecha: formatDate(fecha)
+              })
             }
           );
 
@@ -1232,11 +1233,12 @@ export default function Dashboard() {
           {
             method: "POST",
             headers: {
-              "Content-Type":
-                "application/json",
-              Authorization:
-                `Bearer ${token}`
-            }
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${token}`
+            },
+            body: JSON.stringify({
+              fecha: formatDate(savedRegistro.fecha)
+            })
           }
         );
 
