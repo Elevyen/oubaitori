@@ -1298,8 +1298,8 @@ export default function Dashboard() {
       }
 
       const data = await res.json();
-
-      setAnalisis(data.analisis || null);
+      console.log("DATA ANALISIS:", data);
+      setAnalisis(data.analisis || data || null);
 
     } catch (error) {
       console.error("Error cargando análisis:", error);
