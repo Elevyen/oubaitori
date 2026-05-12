@@ -21,10 +21,6 @@ const RECOMENDACIONES = [
   "Relaja la mandíbula para liberar tensión."
 ];
 
-const _inFlightAnalisis = new Map(); // fecha Promise
-const _lastFetchTimestamp = new Map(); // fecha ms timestamp
-const MIN_FETCH_INTERVAL_MS = 300 * 1000; // 5m mínimo entre fetchs para la misma fecha
-
 const API_BASE =
   (typeof import.meta !== "undefined" &&
     import.meta.env &&
@@ -58,7 +54,9 @@ export default function Dashboard() {
     const d = new Date();
     return `${String(d.getMonth() + 1).padStart(2, "0")}-${d.getFullYear()}`; // e.g. "05-2026"
   });
-
+  const reconcileIntervalIdRef = useRef(null);
+  const _lastFetchTimestamp = useRef(new Map()).current;
+  const MIN_FETCH_INTERVAL_MS = 1000 * 300; // 5m
   const [modalRegistro, setmodalRegistro] = useState(false);
   const [fechaSeleccionada, setFechaSeleccionada] = useState(null);
   const [modalInitial, setModalInitial] = useState(null);
@@ -68,11 +66,9 @@ export default function Dashboard() {
 
   const [partner, setPartner] = useState(null);
   const [partnerLoading, setPartnerLoading] = useState(false);
+  const [analisis, setAnalisis] = useState(null);
+  const [cargandoAnalisis, setCargandoAnalisis] = useState(false);
 
-  const [analysisLoading, setAnalysisLoading] = useState(false);
-  const [analysisSummary, setAnalysisSummary] = useState(null);
-  const [analysisPerRecord, setAnalysisPerRecord] = useState([]);
-  const [analysisComplete, setAnalysisComplete] = useState(false);
   const [existingForSelectedDate, setExistingForSelectedDate] = useState(null);
   const [modalLoading, setModalLoading] = useState(false);
 
@@ -626,44 +622,6 @@ export default function Dashboard() {
     return null;
   };
 
-  const contarRegistrosDelDia = (fechaDDMMYYYY) => {
-    if (!fechaDDMMYYYY) return 0;
-    let total = 0;
-    const countIn = (list) => {
-      (list || []).forEach((e) => {
-        const mismaFecha =
-          e.date === fechaDDMMYYYY ||
-          e.fecha === fechaDDMMYYYY ||
-          e.createdAt?.startsWith?.(fechaDDMMYYYY) ||
-          false;
-        if (!mismaFecha) return;
-        const emailEnEntrada = e.usuario?.email || e.user?.email || e.email || null;
-        if (emailEnEntrada && emailUsuario) {
-          if (String(emailEnEntrada).toLowerCase() === String(emailUsuario).toLowerCase()) total++;
-        } else {
-          total++;
-        }
-      });
-    };
-    countIn(entradas);
-    countIn(loadEntradasCache({ userId: String(user?._id || storedUser?._id || "").trim() || null, userEmail: (user?.email || storedUser?.email || "").toLowerCase().trim() || null }));
-    try {
-      const raw = localStorage.getItem("pendingRegistros");
-      const pendientes = raw ? JSON.parse(raw) : [];
-      const filtered = (pendientes || []).filter((p) => {
-        const pEmail = (p.usuario?.email || p.user?.email || p.email || "").toLowerCase().trim();
-        const pUid = String(p.usuarioId || p.userId || p.usuario?._id || p.usuario?.id || p.user?._id || p.user?.id || "").trim();
-        const uid = String(user?._id || storedUser?._id || "").trim();
-        const email = (user?.email || storedUser?.email || "").toLowerCase().trim();
-        if (pUid && uid && pUid === uid) return true;
-        if (pEmail && email && pEmail === email) return true;
-        return false;
-      }).map(ensureIdsAreStrings);
-      countIn(filtered);
-    } catch { }
-    return total;
-  };
-
   const handleDayClick = async (dateString) => {
     const todayKey = todayDate();
     if (toDate(dateString) > toDate(todayKey)) {
@@ -977,219 +935,9 @@ export default function Dashboard() {
     return out;
   }
 
-  function lastAnalisisKeyForUser(userId) {
-    return `lastAnalisis_${String(userId || "anon")}`;
-  }
-
-  async function fetchAnalisisByDate(fechaYYYYMMDD) {
-    if (!token || !fechaYYYYMMDD) return null;
-
-    const last = _lastFetchTimestamp.get(fechaYYYYMMDD) || 0;
-    if (Date.now() - last < MIN_FETCH_INTERVAL_MS) return null;
-
-    if (_inFlightAnalisis.has(fechaYYYYMMDD)) return _inFlightAnalisis.get(fechaYYYYMMDD);
-
-    const p = (async () => {
-      try {
-        const preferred = `${API_BASE || ""}/api/AnalisisDiario/fecha/${encodeURIComponent(fechaYYYYMMDD)}`;
-        const res = await fetch(preferred, {
-          method: "GET",
-          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        });
-
-        if (res.status === 404) {
-          _lastFetchTimestamp.set(fechaYYYYMMDD, Date.now());
-          return null;
-        }
-
-        if (!res.ok) {
-          const txt = await res.text().catch(() => '');
-          console.error('fetchAnalisisByDate: unexpected status', res.status, preferred, txt);
-          _lastFetchTimestamp.set(fechaYYYYMMDD, Date.now());
-          return null;
-        }
-
-        const json = await res.json().catch(() => null);
-        _lastFetchTimestamp.set(fechaYYYYMMDD, Date.now());
-        return json?.analisis || json?.result || json || null;
-      } catch (err) {
-        console.debug('fetchAnalisisByDate network error', err && err.message ? err.message : err);
-        _lastFetchTimestamp.set(fechaYYYYMMDD, Date.now());
-        return null;
-      } finally {
-        _inFlightAnalisis.delete(fechaYYYYMMDD);
-      }
-    })();
-
-    _inFlightAnalisis.set(fechaYYYYMMDD, p);
-    return p;
-  }
-
-  async function fetchAnalisisDias({ registrosAnalisis = null, persist = false, force = false } = {}) {
-    const authToken = token;
-    if (!authToken) return { ok: false, error: "no_autenticado" };
-
-    const currentUserId = String(user?._id || storedUser?._id || user?.id || storedUser?.id || "").trim() || "anon";
-
-    const windowDates = lastNDates(7);
-    let rawregistrosAnalisis = Array.isArray(registrosAnalisis) ? registrosAnalisis.slice(0, 100) : null;
-    if (!rawregistrosAnalisis || rawregistrosAnalisis.length === 0) {
-      try {
-        const refreshed = await loadEntriesByMonth(mesSeleccionado);
-        rawregistrosAnalisis = Array.isArray(refreshed) ? refreshed.slice(0, 200) : [];
-      } catch (e) {
-        rawregistrosAnalisis = Array.isArray(entradas) ? entradas.slice(0, 200) : [];
-      }
-    }
-
-    const filteredByUser = (rawregistrosAnalisis || []).filter((r) => {
-      if (!r) return false;
-      const entryUid = String(r.usuarioId || r.userId || r.usuario?._id || r.user?.id || r.user?._id || r.idUsuario || "").trim();
-      if (entryUid && currentUserId && entryUid === currentUserId) return true;
-      const entryEmail = (r.usuario?.email || r.user?.email || r.email || "").toLowerCase().trim();
-      const currentEmail = (user?.email || storedUser?.email || "").toLowerCase().trim();
-      if (entryEmail && currentEmail && entryEmail === currentEmail) return true;
-      return !entryUid && !entryEmail;
-    });
-
-    const normalized = (filteredByUser || []).map((r) => {
-      if (!r || typeof r !== "object") return null;
-      const created = r.createdAt || r.hora || r.time || null;
-      const fechaRaw = r.fecha || r.date || (created ? String(created).slice(0, 10) : null);
-      const fecha = formatDate(fechaRaw);
-      const emociones = Array.isArray(r.emociones) ? r.emociones : (Array.isArray(r.emotions) ? r.emotions : []);
-      const intensidad = r.intensidad ?? r.intensity ?? (typeof r.int === "number" ? r.int : null);
-      const nota = r.nota || null;
-      const id = r.id || r._id || null;
-      const usuarioId = r.usuarioId || r.userId || r.usuario?._id || r.user?._id || null;
-
-      return { id, fecha, emociones, intensidad, nota, usuarioId, _raw: r };
-    }).filter(Boolean);
-
-    const payloadregistrosAnalisis = normalized.filter((x) => x && x.fecha && windowDates.includes(x.fecha)).slice(0, 14);
-
-    try {
-      const key = lastAnalisisKeyForUser(currentUserId);
-      const lastTsRaw = localStorage.getItem(key);
-      const lastTs = lastTsRaw ? Number(lastTsRaw) : 0;
-      const now = Date.now();
-      const sevenDaysMs = 1000 * 60 * 60 * 24 * 7;
-      if (!force && lastTs && (now - lastTs) < sevenDaysMs) {
-        console.debug("fetchAnalisisDias: análisis reciente detectado, omitiendo nueva petición (usar force:true para forzar).", { lastTs, ageDays: (now - lastTs) / (1000 * 60 * 60 * 24) });
-        const fechaToCheck = windowDates[0];
-        const existing = await fetchAnalisisByDate(fechaToCheck);
-        if (existing) {
-          setAnalysisSummary(existing.summary || existing || null);
-          setAnalysisComplete(true);
-          return { ok: true, summary: existing.summary || existing || null, note: "recent_analysis_skipped" };
-        }
-        return { ok: false, error: "recent_analysis_skipped" };
-      }
-    } catch (e) {
-      console.debug("fetchAnalisisDias: error comprobando lastAnalisis", e);
-    }
-
-    if (!Array.isArray(payloadregistrosAnalisis) || payloadregistrosAnalisis.length === 0) {
-      console.warn("fetchAnalisisDias: no hay registros válidos en la ventana de 7 días para enviar", { windowDates, normalizedSample: normalized.slice(0, 3) });
-      return { ok: false, error: "no_registrosAnalisis_in_window", details: { windowDates, normalizedSample: normalized.slice(0, 3) } };
-    }
-
-    const url = `${API_BASE || ""}/api/AnalisisDiario`;
-    setAnalysisLoading(true);
-
-    try {
-
-      const res = await fetch(url, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${authToken}`,
-        },
-        body: JSON.stringify({ registrosAnalisis: payloadregistrosAnalisis, persist }),
-      });
-
-      const json = await res.json().catch(() => ({}));
-
-      if (!res.ok) {
-        if (res.status === 409 || json?.message === "analisis_duplicado") {
-          console.warn("fetchAnalisisDias: análisis duplicado (409). Recuperando análisis existente.", json);
-          setAnalysisComplete(true);
-          const fechaToCheck = windowDates[0];
-          const existing = await fetchAnalisisByDate(fechaToCheck);
-          if (existing) {
-            const normalizedSummary = existing.summary || existing || null;
-            setAnalysisSummary(normalizedSummary);
-            try {
-              localStorage.setItem(lastAnalisisKeyForUser(currentUserId), String(Date.now()));
-            } catch { }
-            return { ok: true, summary: normalizedSummary, note: "analisis_duplicado_recovered" };
-          }
-          return { ok: false, error: "analisis_duplicado", details: json };
-        }
-
-        console.error("fetchAnalisisDias server error:", res.status, json);
-        return { ok: false, error: json.message || json.error || `server_${res.status}`, details: json };
-      }
-
-      const result = json.result || json;
-      const rawSummary = result?.summary || result || null;
-
-      const normalizedSummary = rawSummary
-        ? {
-          totalregistrosAnalisis: rawSummary.totalregistrosAnalisis ?? rawSummary.total_registrosAnalisis ?? rawSummary.count ?? payloadregistrosAnalisis.length,
-          avgIntensity: rawSummary.avgIntensity ?? rawSummary.avg_intensity ?? rawSummary.avg ?? null,
-          emotionCounts: rawSummary.emotionCounts ?? rawSummary.emotion_counts ?? (Array.isArray(rawSummary.emotions) ? rawSummary.emotions.reduce((acc, it) => { const k = it.emotion || it.label || it.name; if (k) acc[k] = it.count ?? it.cnt ?? it.value ?? 0; return acc; }, {}) : {}),
-          highIntensityIds: rawSummary.highIntensityIds ?? rawSummary.high_intensity_ids ?? rawSummary.high ?? [],
-          raw: rawSummary,
-        }
-        : null;
-
-      setAnalysisPerRecord(result?.perRecord || result?.per_record || []);
-      setAnalysisSummary(normalizedSummary);
-      setAnalysisComplete(true);
-
-      try {
-        localStorage.setItem(lastAnalisisKeyForUser(currentUserId), String(Date.now()));
-      } catch (e) {
-        console.debug("fetchAnalisisDias: no se pudo guardar lastAnalisis en localStorage", e);
-      }
-
-      if (normalizedSummary?.avgIntensity >= 7) {
-        setMensajeGuia("Has registrado emociones de alta intensidad recientemente. Busca apoyo si lo necesitas.");
-      }
-
-      console.groupCollapsed("AnalisisDias - response");
-      console.debug("status:", res.status);
-      console.debug("body:", json);
-      console.debug("normalizedSummary:", normalizedSummary);
-      console.groupEnd();
-
-      return { ok: true, summary: normalizedSummary, raw: json };
-    } catch (err) {
-      console.error("fetchAnalisisDias exception", err);
-      return { ok: false, error: "exception", details: String(err) };
-    } finally {
-      setAnalysisLoading(false);
-    }
-  }
-
-  useEffect(() => {
-    if (!Array.isArray(entradas) || entradas.length === 0 || !token) return;
-
-    (async () => {
-      try {
-        await fetchAnalisisDias({ registrosAnalisis: entradas.slice(0, 14), persist: false });
-        await checkIfAnalysisComplete();
-      } catch (err) {
-        console.error("Error al solicitar análisis emocional:", err);
-      }
-    })();
-  }, [entradas, token]);
-
   const RECONCILE_KEY = "pendingAnalisisReconciles";
   const RECONCILE_INTERVAL_MS = 1000 * 60 * 2;
   const reconcileProcessingRef = useRef(false);
-  const reconcileIntervalIdRef = useRef(null);
 
   function enqueueReconcile(fechaYYYYMMDD) {
     try {
@@ -1210,39 +958,176 @@ export default function Dashboard() {
       localStorage.setItem(RECONCILE_KEY, JSON.stringify(next));
     } catch (e) { }
   }
+  async function checkAnalisisExists(fecha) {
 
-  async function checkAnalisisExists(fechaYYYYMMDD) {
-    if (!token) return false;
     try {
-      const url = `${API_BASE}/api/AnalisisDiario/status?fecha=${encodeURIComponent(fechaYYYYMMDD)}`;
-      const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
-      const json = await res.json().catch(() => ({}));
-      return Boolean(json.exists);
-    } catch { return false; }
+
+      const res = await fetch(
+        `${API_BASE}/api/analisis/${formatDate(fecha)}`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`
+          }
+        }
+      );
+
+      if (res.status === 404) {
+        return false;
+      }
+
+      return res.ok;
+
+    } catch (err) {
+
+      console.error(
+        "checkAnalisisExists error",
+        err
+      );
+
+      return false;
+    }
   }
-
   async function processPendingReconciles() {
-    if (reconcileProcessingRef.current) return;
+
+    // evita ejecuciones paralelas
+    if (reconcileProcessingRef.current) {
+      return;
+    }
+
     reconcileProcessingRef.current = true;
+
     try {
-      const raw = localStorage.getItem(RECONCILE_KEY);
-      const pending = raw ? JSON.parse(raw) : [];
-      if (!Array.isArray(pending) || pending.length === 0) return;
 
-      const uniqueDates = Array.from(new Set(pending.filter(Boolean)));
+      const raw =
+        localStorage.getItem(RECONCILE_KEY);
+
+      const pending =
+        raw ? JSON.parse(raw) : [];
+
+      if (
+        !Array.isArray(pending) ||
+        pending.length === 0
+      ) {
+        return;
+      }
+
+      // elimina nulls/undefined/duplicados
+      const uniqueDates = Array.from(
+        new Set(
+          pending
+            .filter(Boolean)
+            .map((f) => formatDate(f))
+        )
+      );
+
       for (const fecha of uniqueDates) {
-        const last = _lastFetchTimestamp.get(fecha) || 0;
-        if (Date.now() - last < MIN_FETCH_INTERVAL_MS) continue;
 
-        const exists = await checkAnalisisExists(fecha);
-        _lastFetchTimestamp.set(fecha, Date.now());
-        if (exists) {
-          dequeueReconcile(fecha);
+        try {
+
+          // throttle para evitar spam
+          const last =
+            _lastFetchTimestamp.get(fecha) || 0;
+
+          if (
+            Date.now() - last <
+            MIN_FETCH_INTERVAL_MS
+          ) {
+            continue;
+          }
+
+          _lastFetchTimestamp.set(
+            fecha,
+            Date.now()
+          );
+
+          // comprobar si ya existe análisis
+          const exists =
+            await checkAnalisisExists(
+              formatDate(fecha)
+            );
+
+          // si ya existe → quitar de pendientes
+          if (exists) {
+
+            dequeueReconcile(fecha);
+
+            continue;
+          }
+
+          // si no existe → regenerar
+          console.debug(
+            "Regenerando análisis para:",
+            fecha
+          );
+
+          const res = await fetch(
+            `${API_BASE}/api/analisis`,
+            {
+              method: "POST",
+              headers: {
+                "Content-Type":
+                  "application/json",
+                Authorization:
+                  `Bearer ${token}`
+              }
+            }
+          );
+
+          // si backend respondió OK
+          if (res.ok) {
+
+            // volver a comprobar
+            const existsAfter =
+              await checkAnalisisExists(
+                formatDate(fecha)
+              );
+
+            if (existsAfter) {
+
+              dequeueReconcile(fecha);
+
+              // refresca análisis actual visible
+              try {
+
+                const hoy =
+                  formatDate();
+
+                if (
+                  formatDate(fecha) === hoy
+                ) {
+
+                  await cargarAnalisisHoy();
+                }
+
+              } catch (e) {
+
+                console.debug(
+                  "refresh análisis warning",
+                  e
+                );
+              }
+            }
+          }
+
+        } catch (err) {
+
+          console.error(
+            "Error reconciliando análisis:",
+            fecha,
+            err
+          );
         }
       }
+
     } catch (err) {
-      console.error('processPendingReconciles error', err);
+
+      console.error(
+        "processPendingReconciles error",
+        err
+      );
+
     } finally {
+
       reconcileProcessingRef.current = false;
     }
   }
@@ -1318,85 +1203,114 @@ export default function Dashboard() {
       .slice(0, 5) : [];
 
   const handleGuardarEntrada = async (savedRegistro) => {
+
     try {
+
       if (!savedRegistro) return;
-      console.log('Registro ya guardado:', savedRegistro);
-      const updated = await loadEntriesByMonth(mesSeleccionado);
 
-      setEntradas(Array.isArray(updated) ? updated : []);
+      console.log(
+        "Registro ya guardado:",
+        savedRegistro
+      );
 
-      enqueueReconcile(savedRegistro.fecha);
+      const updated =
+        await loadEntriesByMonth(
+          mesSeleccionado
+        );
+
+      setEntradas(
+        Array.isArray(updated)
+          ? updated
+          : []
+      );
+
+      // inicia generación análisis
+      try {
+
+        await fetch(
+          `${API_BASE}/api/analisis`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type":
+                "application/json",
+              Authorization:
+                `Bearer ${token}`
+            }
+          }
+        );
+
+      } catch (e) {
+
+        console.error(
+          "Error iniciando análisis",
+          e
+        );
+      }
+
+      // deja pendiente reconciliación
+      enqueueReconcile(
+        savedRegistro.fecha
+      );
+
+      // refresca solo si es hoy
+      if (
+        formatDate(savedRegistro.fecha) ===
+        todayDate()
+      ) {
+
+        await cargarAnalisisHoy();
+      }
+
     } catch (error) {
-      console.error('handleGuardarEntrada error:', error);
+
+      console.error(
+        "handleGuardarEntrada error:",
+        error
+      );
     }
   };
 
-  async function checkIfAnalysisComplete() {
-    if (!token) return false;
-    const todayKey = todayDate();
-    const exists = await checkAnalisisExists(todayKey);
-    setAnalysisComplete(exists);
-    return exists;
-  }
+  async function cargarAnalisisHoy() {
+    if (!token) return;
 
-  const realizarAnalisisManual = async ({ persist = true } = {}) => {
-    if (analysisLoading || !token) return;
+    setCargandoAnalisis(true);
 
-    setAnalysisLoading(true);
     try {
-      const res = await fetch(`${API_BASE}/api/AnalisisDiario`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ registrosAnalisis: null, persist }),
-      });
+      const fechaHoy = formatDate();
 
-      const json = await res.json().catch(() => ({}));
-
-      if (!res.ok) {
-        if (res.status === 409 || json?.message === "analisis_duplicado") {
-          const fechaToCheck = todayDate();
-          const existing = await fetchAnalisisByDate(fechaToCheck);
-          if (existing) {
-            setAnalysisSummary(existing.summary || existing || null);
-            setAnalysisPerRecord(existing.perRecord || existing.per_record || []);
-            setAnalysisComplete(true);
-            setMensajeGuia("Análisis ya existente recuperado.");
-            return;
+      const res = await fetch(
+        `${API_BASE}/api/analisis/${fechaHoy}`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`
           }
-          setMensajeGuia("Análisis duplicado en servidor.");
-          return;
         }
+      );
 
-        setMensajeGuia(json?.message || `Error servidor (${res.status})`);
+      if (res.status === 404) {
+        setAnalisis(null);
         return;
       }
 
-      const result = json.result || json;
-      const summary = result?.summary || result || null;
-      setAnalysisSummary(summary);
-      setAnalysisPerRecord(result?.perRecord || result?.per_record || []);
-      setAnalysisComplete(true);
+      if (!res.ok) {
+        throw new Error("error_cargando_analisis");
+      }
 
-      try {
-        const currentUserId = String(user?._id || storedUser?._id || "anon");
-        localStorage.setItem(`lastAnalisis_${currentUserId}`, String(Date.now()));
-      } catch (e) { /* ignore */ }
+      const data = await res.json();
 
-      try {
-        const updated = await loadEntriesByMonth(mesSeleccionado);
-        setEntradas(Array.isArray(updated) ? updated : entradas);
-      } catch (e) { /* ignore */ }
+      setAnalisis(data.analisis || null);
 
-    } catch (err) {
-      console.error("realizarAnalisisManual error:", err);
-      setMensajeGuia("Error de red al solicitar análisis.");
+    } catch (error) {
+      console.error("Error cargando análisis:", error);
     } finally {
-      setAnalysisLoading(false);
+      setCargandoAnalisis(false);
     }
-  };
+  }
+  useEffect(() => {
+    if (!token) return;
+    cargarAnalisisHoy();
+  }, [token]);
 
   return (
     <div className="page-layout">
@@ -1439,43 +1353,51 @@ export default function Dashboard() {
                   </Card>
                   <Card variant="status-card-compact">
                     <h3>Tendencia de la semana</h3>
-                    {analysisLoading ? (
-                      <p className="status-detail">Analizando registros...</p>
-                    ) : analysisSummary ? (
+
+                    {cargandoAnalisis ? (
+                      <p className="status-detail">
+                        Analizando registros...
+                      </p>
+                    ) : analisis ? (
                       <>
                         <p className="status-detail">
-                          Registros analizados: <strong>{analysisSummary.totalregistrosAnalisis}</strong>
+                          Estado general:
+                          <strong>
+                            {" "}
+                            {analisis.resumen.estadoGeneral}
+                          </strong>
                         </p>
+
                         <p className="status-detail">
-                          Intensidad media: <strong>{analysisSummary.avgIntensity}</strong> / 10
+                          Intensidad media:
+                          <strong>
+                            {" "}
+                            {analisis.resumen.intensidadMedia}/10
+                          </strong>
                         </p>
 
-                        <div style={{ marginTop: 8 }}>
-                          <strong>Emociones más frecuentes:</strong>
-                          <ul style={{ margin: "6px 0 0 16px", padding: 0 }}>
-                            {analysisSummary.emotionCounts && Object.keys(analysisSummary.emotionCounts).length > 0 ? (
-                              Object.entries(analysisSummary.emotionCounts)
-                                .sort((a, b) => b[1] - a[1])
-                                .slice(0, 3)
-                                .map(([emo, cnt]) => (
-                                  <li key={emo} style={{ listStyle: "disc" }}>
-                                    {emo} — {cnt}
-                                  </li>
-                                ))
-                            ) : (
-                              <li style={{ listStyle: "disc" }}>Sin datos suficientes</li>
-                            )}
-                          </ul>
-                        </div>
+                        <p
+                          className="status-detail"
+                          style={{ marginTop: 10 }}
+                        >
+                          {analisis.resumen.resumen}
+                        </p>
 
-                        {analysisSummary.highIntensityIds && analysisSummary.highIntensityIds.length > 0 && (
-                          <p style={{ color: "#cf1322", marginTop: 8 }}>
-                            <strong>Alerta:</strong> {analysisSummary.highIntensityIds.length} registro(s) con intensidad alta.
+                        {analisis.resumen.alerta?.mostrar && (
+                          <p
+                            style={{
+                              color: "#cf1322",
+                              marginTop: 10
+                            }}
+                          >
+                            ⚠️ {analisis.resumen.alerta.mensaje}
                           </p>
                         )}
                       </>
                     ) : (
-                      <p className="status-detail">Sigue registrando para ver tendencias.</p>
+                      <p className="status-detail">
+                        Sigue registrando emociones para generar análisis.
+                      </p>
                     )}
                   </Card>
                 </section>
@@ -1515,7 +1437,7 @@ export default function Dashboard() {
                 <div className="dialogue-box">
                   <div className="dialogue-text-content">
                     <h4>{cargando ? "Meditando..." : `¿Cómo va todo, ${nombreUsuario}?`}</h4>
-                    <p>{analysisComplete ? "El análisis para este periodo ya se ha realizado." : mensajeGuia}</p>
+                    <p>{analisis?.resumen?.resumen || mensajeGuia}</p>
                   </div>
                   <div style={{ display: "flex", gap: "10px" }}>
                     <button className="rpg-button" onClick={() => handleDayClick(todayDate())}>
@@ -1523,10 +1445,9 @@ export default function Dashboard() {
                     </button>
                     <button
                       className="rpg-button"
-                      onClick={() => realizarAnalisisManual({ persist: true })}
-                      disabled={cargando || analysisLoading}
-                    >
-                      {analysisLoading ? "Analizando..." : "Realizar análisis"}
+                      onClick={cargarAnalisisHoy}
+                      disabled={cargando || cargandoAnalisis}>
+                      {cargandoAnalisis ? "Analizando..." : "Actualizar análisis"}
                     </button>
                   </div>
                   <div className="dialogue-next-icon">▼</div>
