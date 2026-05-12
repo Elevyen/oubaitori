@@ -1,6 +1,7 @@
 import { useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { fetchEntriesByMonth } from "../api/entries";
+import AnalisisSemanal from "../components/AnalisisSemanal";
 import CalendarView from "../components/CalendarView";
 import RegistroEmocional from "../components/RegistroEmocional";
 import Card from "../components/ui/Card.jsx";
@@ -71,7 +72,8 @@ export default function Dashboard() {
 
   const [existingForSelectedDate, setExistingForSelectedDate] = useState(null);
   const [modalLoading, setModalLoading] = useState(false);
-
+  const [modalResumenSemanal, setModalResumenSemanal] = useState(false);
+  const [analisisHistorial, setAnalisisHistorial] = useState([]);
   // ref para fechas en proceso de guardado (evita race conditions)
   const savingDatesRef = useRef(new Set());
   const [, setSavingTick] = useState(0);
@@ -344,7 +346,36 @@ export default function Dashboard() {
       return tb - ta;
     });
   }
+  async function cargarHistorialAnalisis() {
+    try {
+      const res = await fetch(
+        `${API_BASE}/api/analisis/historial`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`
+          }
+        }
+      );
 
+      if (!res.ok) {
+        throw new Error("error_historial");
+      }
+
+      const data = await res.json();
+
+      setAnalisisHistorial(
+        Array.isArray(data.analisis)
+          ? data.analisis
+          : []
+      );
+
+    } catch (error) {
+      console.error(
+        "Error cargando historial análisis:",
+        error
+      );
+    }
+  }
   async function loadEntriesByMonth(month) {
     const currentUserId = String(user?._id || storedUser?._id || user?.id || storedUser?.id || "").trim() || null;
     const currentUserEmail = (user?.email || storedUser?.email || "").toLowerCase().trim() || null;
@@ -1178,7 +1209,7 @@ export default function Dashboard() {
   const entradasUsuarioOrdenadas = [...entradasUsuario].sort((a, b) => {
     return parseFecha(b.fecha) - parseFecha(a.fecha);
   });
-
+  const ultimos7Registros = entradasUsuarioOrdenadas.slice(0, 7);
   const ultimaEntrada = entradasUsuarioOrdenadas[0] || null;
 
   const ultimaFechaRegistrada = ultimaEntrada
@@ -1321,6 +1352,7 @@ export default function Dashboard() {
           <aside className="sidebar">
             <h2 className="sidebar-title">Oubaitori</h2>
             <nav>
+              <a href="#" onClick={async (e) => { e.preventDefault(); await cargarHistorialAnalisis(); setModalResumenSemanal(true); }}>Análisis semanal</a>
               <a href="#">Mapa emocional PRÓXIMAMENTE</a>
               <a href="#">Recomendaciones personalizadas PRÓXIMAMENTE</a>
               <a href="#" onClick={handleLogout} className="logout-link">
@@ -1472,6 +1504,11 @@ export default function Dashboard() {
         guardarRegistro={guardarRegistro}
         sincronizarConServidor={sincronizarConServidor}
         apiBase={API_BASE}
+      />
+      <AnalisisSemanal
+        open={modalResumenSemanal}
+        onClose={() => setModalResumenSemanal(false)}
+        analisisHistorial={analisisHistorial}
       />
     </div>
   );
