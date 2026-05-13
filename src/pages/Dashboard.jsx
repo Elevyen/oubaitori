@@ -453,8 +453,6 @@ export default function Dashboard() {
 
       try {
         const cache = loadEntradasCache({ userId: currentUserId, userEmail: currentUserEmail });
-        console.debug("fallback cache length:", Array.isArray(cache) ? cache.length : 0);
-        console.debug("fallback cache sample:", (cache || []).slice(0, 5));
         return Array.isArray(cache) ? cache.map(normalizeRegistro).filter(Boolean) : [];
       } catch (e) {
         console.warn("fallback cache read error", e);
@@ -475,8 +473,8 @@ export default function Dashboard() {
         if (!mounted) return;
         setEntradas(Array.isArray(data) ? data : []);
       } catch (err) {
-        console.error("Error cargando entradas por mes:", err);
-        setMensajeGuia("No se pudieron cargar las entradas. Revisa la conexión con el servidor.");
+        console.error("Error al cargar entradas por mes:", err);
+        setMensajeGuia("No pudimos cargar tus registros. Inténtalo de nuevo en unos momentos.");
         const cache = loadEntradasCache({
           userId: String(user?._id || storedUser?._id || "").trim() || null,
           userEmail: (user?.email || storedUser?.email || "").toLowerCase().trim() || null
@@ -700,7 +698,6 @@ export default function Dashboard() {
       }
 
       // No existe entrada local: hacer fallback remoto
-      console.debug('handleDayClick - no local entry found, fetching month to confirm', dateString);
       try {
         let month;
 
@@ -711,7 +708,6 @@ export default function Dashboard() {
           month = mesSeleccionado;
         }
         const remoteList = await loadEntriesByMonth(month);
-        console.debug('handleDayClick - remoteList length', Array.isArray(remoteList) ? remoteList.length : 0);
         const foundRemote = (remoteList || []).find(r => {
           const rFecha = formatDate(
             r?.fecha || r?.date || r?.createdAt
@@ -728,7 +724,7 @@ export default function Dashboard() {
           return;
         }
       } catch (e) {
-        console.debug('handleDayClick - fallback remote fetch failed', e);
+        console.debug('Error: ', e);
       }
 
       setExistingForSelectedDate(null);
@@ -826,7 +822,6 @@ export default function Dashboard() {
         }
       } catch (e) {
         if (e && e.code === "registro_existente") throw e;
-        console.debug("guardarRegistro: warning al comprobar duplicados", e);
       }
     }
 
@@ -1182,22 +1177,13 @@ export default function Dashboard() {
   }, [token]);
 
   const currentUserId = String(user?._id || user?.id || storedUser?._id || storedUser?.id || "").trim();
-  console.log("currentUserId", currentUserId);
 
-  console.log(
-    "entradas userIds",
-    entradas.map((e) => ({
-      userId: e.userId,
-      usuarioId: e.usuarioId
-    }))
-  );
   const currentUserEmail = (user?.email || storedUser?.email || "").toLowerCase().trim();
 
   const entradasUsuario = (entradas || []).filter((e) => {
     const entryUid = String(e.usuarioId || e.userId || e.usuario?._id || e.user?.id || "").trim();
     return entryUid === currentUserId;
   });
-  console.log("entradasUsuario", entradasUsuario);
   const parseFecha = (fechaStr) => {
     if (!fechaStr) return 0;
 
@@ -1239,11 +1225,6 @@ export default function Dashboard() {
     try {
 
       if (!savedRegistro) return;
-
-      console.log(
-        "Registro ya guardado:",
-        savedRegistro
-      );
 
       const updated =
         await loadEntriesByMonth(
@@ -1331,7 +1312,6 @@ export default function Dashboard() {
       }
 
       const data = await res.json();
-      console.log("DATA ANALISIS:", data);
       setAnalisis(data.analisis || data || null);
 
     } catch (error) {
@@ -1470,7 +1450,7 @@ export default function Dashboard() {
                 <div className="dialogue-name-tag"><span>{partner?.nombre || partner?.name || "Guía"}</span></div>
                 <div className="dialogue-box">
                   <div className="dialogue-text-content">
-                    <h4>{cargando ? "Meditando..." : `¿Cómo va todo, ${nombreUsuario}?`}</h4>
+                    <h4>{cargando ? "Preparando tu espacio..." : `¿Cómo va todo, ${nombreUsuario}?`}</h4>
                     <p>{analisis?.resumen?.resumen || mensajeGuia}</p>
                   </div>
                   <div style={{ display: "flex", gap: "10px" }}>
